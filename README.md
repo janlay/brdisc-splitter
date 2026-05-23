@@ -59,3 +59,7 @@ During extraction, temporary files use `final-output-name.partial`. On rerun, co
 - Multi-season detection is based on season ranges or multiple season markers in the input path or media name.
 - The tool does not split a single long title into episodes by chapter.
 - ISO auto-mounting is supported only on macOS and Linux. On other platforms, mount the ISO manually and pass the mounted directory.
+
+## License
+
+See [LICENSE](LICENSE).

@@ -59,3 +59,7 @@ macOS 下处理 ISO 还会使用系统工具 `hdiutil` 和 `plutil`。Linux 下�
 - 多季检测基于输入路径或媒体名中的季范围或多个季标记。
 - 工具不会将单个长标题按章节切分为多集。
 - ISO 自动挂载仅支持 macOS 和 Linux。其他平台请手动挂载 ISO 后传入挂载目录。
+
+## 许可证
+
+见 [LICENSE](LICENSE)。
