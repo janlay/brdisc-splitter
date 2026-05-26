@@ -5,9 +5,16 @@ struct LogView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      HStack {
-        Text(L10n.string("log.title"))
-          .font(.headline)
+      HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(L10n.string("log.title"))
+            .font(.headline)
+
+          Text(model.statusText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
 
         Spacer()
 
@@ -34,11 +41,25 @@ struct LogView: View {
 
       ScrollViewReader { proxy in
         ScrollView {
-          Text(model.logText.isEmpty ? L10n.string("log.empty") : model.logText)
-            .font(.system(size: 12, design: .monospaced))
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(14)
+          if model.logText.isEmpty {
+            VStack(spacing: 8) {
+              Image(systemName: "terminal")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+
+              Text(L10n.string("log.empty"))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 180)
+          } else {
+            Text(model.logText)
+              .font(.system(size: 12, design: .monospaced))
+              .lineSpacing(2)
+              .textSelection(.enabled)
+              .frame(maxWidth: .infinity, alignment: .topLeading)
+              .padding(14)
+          }
 
           Color.clear
             .frame(height: 1)

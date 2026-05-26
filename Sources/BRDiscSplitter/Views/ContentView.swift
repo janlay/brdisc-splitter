@@ -3,25 +3,20 @@ import SwiftUI
 
 struct ContentView: View {
   private enum Layout {
-    static let introWidth: CGFloat = 520
-    static let controlsWidth: CGFloat = 620
-    static let logWidth: CGFloat = 480
-    static let introHeight: CGFloat = 330
-    static let minimumHeight: CGFloat = 260
-    static let inputBaseHeight: CGFloat = 260
-    static let optionsBaseHeight: CGFloat = 365
+    static let controlsWidth: CGFloat = 680
+    static let logWidth: CGFloat = 520
+    static let minimumHeight: CGFloat = 360
+    static let inputBaseHeight: CGFloat = 390
+    static let optionsBaseHeight: CGFloat = 430
     static let optionsAdvancedHeight: CGFloat = 330
     static let outputDirectoryShortcutHeight: CGFloat = 28
     static let optionsStatusHeight: CGFloat = 36
-    static let confirmHeight: CGFloat = 570
-    static let runningHeight: CGFloat = 620
-    static let completeHeight: CGFloat = 380
-    static let introTitleIconWidth: CGFloat = 28
-    static let introTitleSpacing: CGFloat = 6
+    static let confirmHeight: CGFloat = 610
+    static let runningHeight: CGFloat = 650
+    static let completeHeight: CGFloat = 430
   }
 
   private enum WizardStep: Equatable {
-    case intro
     case input
     case options
     case confirm
@@ -29,8 +24,6 @@ struct ContentView: View {
 
     var title: String {
       switch self {
-      case .intro:
-        return L10n.string("wizard.step.intro.title")
       case .input:
         return L10n.string("wizard.step.input.title")
       case .options:
@@ -41,21 +34,20 @@ struct ContentView: View {
         return L10n.string("wizard.step.complete.title")
       }
     }
-
   }
 
   static let initialContentSize = CGSize(
-    width: Layout.introWidth,
-    height: Layout.introHeight
+    width: Layout.controlsWidth,
+    height: Layout.inputBaseHeight
   )
 
   static let minimumContentSize = CGSize(
-    width: Layout.introWidth,
+    width: Layout.controlsWidth,
     height: Layout.minimumHeight
   )
 
   @ObservedObject var model: AppModel
-  @State private var step: WizardStep = .intro
+  @State private var step: WizardStep = .input
   @State private var isAdvancedExpanded = false
   @State private var isLogVisible = false
   @State private var window: NSWindow?
@@ -125,72 +117,84 @@ struct ContentView: View {
   }
 
   private var header: some View {
-    HStack(alignment: .top, spacing: 12) {
-      VStack(alignment: .leading, spacing: 4) {
-        breadcrumbProgress
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(alignment: .center, spacing: 12) {
+        Label {
+          VStack(alignment: .leading, spacing: 1) {
+            Text("BRDisc Splitter")
+              .font(.headline)
 
-        Text(model.statusText)
-          .font(.caption)
-          .foregroundStyle(statusStyle)
-          .lineLimit(2)
+            Text(AppVersion.displayText)
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+          }
+        } icon: {
+          Image(systemName: "opticaldiscdrive")
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+        }
+
+        Spacer()
+
+        StatusBadge(text: model.statusText, tone: statusTone)
+
+        LanguagePicker(language: $model.language)
+
+        Button {
+          setLogVisibility(!isLogVisible)
+        } label: {
+          Image(systemName: "sidebar.right")
+        }
+        .help(isLogVisible ? L10n.string("log.hide") : L10n.string("log.show"))
       }
 
-      Spacer()
-
-      Button {
-        setLogVisibility(!isLogVisible)
-      } label: {
-        Image(systemName: "sidebar.right")
-      }
-      .help(isLogVisible ? L10n.string("log.hide") : L10n.string("log.show"))
+      stepProgress
     }
     .padding(.horizontal, 20)
     .padding(.vertical, 14)
   }
 
-  private var breadcrumbProgress: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 6) {
+  private var stepProgress: some View {
+    HStack(alignment: .center, spacing: 8) {
       ForEach(Array(breadcrumbSteps.enumerated()), id: \.offset) { index, breadcrumbStep in
-        Text(breadcrumbStep.title)
-          .font(index == currentBreadcrumbIndex ? .title3 : .callout)
-          .fontWeight(index == currentBreadcrumbIndex ? .semibold : .regular)
-          .foregroundStyle(breadcrumbStyle(for: index))
-          .lineLimit(1)
+        StepToken(
+          number: index + 1,
+          title: breadcrumbStep.title,
+          state: stepTokenState(for: index)
+        )
 
         if index < breadcrumbSteps.count - 1 {
-          Image(systemName: "chevron.right")
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
+          Rectangle()
+            .fill(index < currentBreadcrumbIndex ? Color.accentColor.opacity(0.55) : Color.secondary.opacity(0.2))
+            .frame(width: 18, height: 1)
         }
       }
     }
   }
 
   private var breadcrumbSteps: [WizardStep] {
-    [.intro, .input, .options, .confirm, .complete]
+    [.input, .options, .confirm, .complete]
   }
 
   private var currentBreadcrumbIndex: Int {
     breadcrumbSteps.firstIndex(of: step) ?? breadcrumbSteps.count - 1
   }
 
-  private func breadcrumbStyle(for index: Int) -> some ShapeStyle {
+  private func stepTokenState(for index: Int) -> StepToken.State {
     if index < currentBreadcrumbIndex {
-      return AnyShapeStyle(Color.accentColor)
+      return .done
     }
 
     if index == currentBreadcrumbIndex {
-      return AnyShapeStyle(.primary)
+      return .current
     }
 
-    return AnyShapeStyle(.secondary)
+    return .pending
   }
 
   @ViewBuilder
   private var stepBody: some View {
     switch step {
-    case .intro:
-      introStep
     case .input:
       inputStep
     case .options:
@@ -202,52 +206,13 @@ struct ContentView: View {
     }
   }
 
-  private var introStep: some View {
-    HStack(alignment: .center, spacing: 18) {
-      VStack(alignment: .leading, spacing: 14) {
-        Grid(alignment: .leading, horizontalSpacing: Layout.introTitleSpacing, verticalSpacing: 3) {
-          GridRow(alignment: .firstTextBaseline) {
-            Image(systemName: "opticaldiscdrive")
-              .font(.title2)
-              .fontWeight(.semibold)
-              .frame(width: Layout.introTitleIconWidth, alignment: .leading)
-
-            Text("BRDisc Splitter")
-              .font(.title2)
-              .fontWeight(.semibold)
-          }
-
-          GridRow {
-            Color.clear
-              .frame(width: Layout.introTitleIconWidth, height: 0)
-
-            Text(AppVersion.displayText)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-        }
-
-        Text(L10n.string("intro.description"))
-          .fixedSize(horizontal: false, vertical: true)
-
-        Text(L10n.string("intro.requirement"))
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-      .frame(maxWidth: 280, alignment: .leading)
-
-      Spacer(minLength: 0)
-
-      ExtractionIllustration()
-        .frame(width: 170, height: 160)
-    }
-  }
-
   private var inputStep: some View {
     VStack(alignment: .leading, spacing: 16) {
       DropTargetView(
         inputPath: model.options.inputPath,
         isDisabled: model.isBusy,
+        isScanning: model.isScanning,
+        hasMediaPlan: model.hasMediaPlan,
         onSelect: model.chooseInput,
         onDropPath: model.setDroppedInput(path:)
       )
@@ -263,9 +228,19 @@ struct ContentView: View {
       }
 
       if let message = model.scanMessage, !model.isScanning {
-        Label(message, systemImage: "exclamationmark.triangle")
-          .foregroundStyle(.red)
-          .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 8) {
+          Label(message, systemImage: "exclamationmark.triangle")
+            .foregroundStyle(.red)
+            .fixedSize(horizontal: false, vertical: true)
+
+          Button {
+            setLogVisibility(true)
+          } label: {
+            Label(L10n.string("log.show"), systemImage: "sidebar.right")
+          }
+          .controlSize(.small)
+          .disabled(model.logText.isEmpty)
+        }
       }
 
       if model.hasMediaPlan {
@@ -357,8 +332,18 @@ struct ContentView: View {
           .foregroundStyle(.secondary)
         }
       } else if let exitCode = model.lastExitCode, exitCode != 0 {
-        Label(L10n.format("error.extractionFailed", exitCode), systemImage: "xmark.octagon")
-          .foregroundStyle(.red)
+        VStack(alignment: .leading, spacing: 8) {
+          Label(L10n.format("error.extractionFailed", exitCode), systemImage: "xmark.octagon")
+            .foregroundStyle(.red)
+
+          Button {
+            setLogVisibility(true)
+          } label: {
+            Label(L10n.string("log.show"), systemImage: "sidebar.right")
+          }
+          .controlSize(.small)
+          .disabled(model.logText.isEmpty)
+        }
       }
     }
   }
@@ -464,28 +449,14 @@ struct ContentView: View {
   private var footer: some View {
     HStack(spacing: 12) {
       switch step {
-      case .intro:
-        LanguagePicker(language: $model.language)
-
-        Spacer()
-
-        Button(L10n.string("button.continue")) {
-          setStep(.input)
-        }
-        .buttonStyle(.borderedProminent)
-
       case .input:
-        Button(L10n.string("button.back")) {
-          setStep(.intro)
-        }
-        .disabled(model.isBusy)
-
         Spacer()
 
         Button(L10n.string("button.next")) {
           setStep(.options)
         }
         .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.defaultAction)
         .disabled(!model.hasMediaPlan || model.isBusy)
 
       case .options:
@@ -500,6 +471,7 @@ struct ContentView: View {
           continueFromOptions()
         }
         .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.defaultAction)
         .disabled(model.validationMessage != nil || model.isBusy)
 
       case .confirm:
@@ -519,6 +491,7 @@ struct ContentView: View {
           startExtraction()
         }
         .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.defaultAction)
         .disabled(!model.canStart)
 
       case .complete:
@@ -528,16 +501,22 @@ struct ContentView: View {
 
         Spacer()
 
+        Button(L10n.string("button.newTask")) {
+          model.resetForNewTask()
+          setStep(.input)
+        }
+        .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.defaultAction)
+
         Button(L10n.string("button.quit")) {
           model.quit()
         }
-        .buttonStyle(.borderedProminent)
       }
     }
   }
 
   private var preferredPaneWidth: CGFloat {
-    step == .intro ? Layout.introWidth : Layout.controlsWidth
+    Layout.controlsWidth
   }
 
   private var preferredContentWidth: CGFloat {
@@ -546,8 +525,6 @@ struct ContentView: View {
 
   private var preferredContentHeight: CGFloat {
     switch step {
-    case .intro:
-      return Layout.introHeight
     case .input:
       return inputContentHeight
     case .options:
@@ -567,7 +544,7 @@ struct ContentView: View {
     }
 
     if model.scanMessage != nil, !model.isScanning {
-      height += 40
+      height += 72
     }
 
     if model.hasMediaPlan {
@@ -602,20 +579,20 @@ struct ContentView: View {
     )
   }
 
-  private var statusStyle: some ShapeStyle {
+  private var statusTone: StatusBadge.Tone {
     if model.isRunning || model.isScanning {
-      return AnyShapeStyle(.primary)
+      return .active
     }
 
     if let exitCode = model.lastExitCode, exitCode != 0 {
-      return AnyShapeStyle(.red)
+      return .error
     }
 
     if model.validationMessage != nil || model.scanMessage != nil {
-      return AnyShapeStyle(.secondary)
+      return .warning
     }
 
-    return AnyShapeStyle(.green)
+    return .success
   }
 
   private func pathField(
@@ -759,14 +736,143 @@ struct ContentView: View {
   }
 }
 
+private struct StepToken: View {
+  enum State {
+    case done
+    case current
+    case pending
+  }
+
+  let number: Int
+  let title: String
+  let state: State
+
+  var body: some View {
+    HStack(spacing: 6) {
+      ZStack {
+        Circle()
+          .fill(markerFill)
+
+        if state == .done {
+          Image(systemName: "checkmark")
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(Color.white)
+        } else {
+          Text("\(number)")
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+            .foregroundStyle(markerText)
+        }
+      }
+      .frame(width: 18, height: 18)
+
+      Text(title)
+        .font(.caption.weight(state == .current ? .semibold : .regular))
+        .foregroundStyle(titleStyle)
+        .lineLimit(1)
+    }
+  }
+
+  private var markerFill: Color {
+    switch state {
+    case .done:
+      return Color.accentColor
+    case .current:
+      return Color.accentColor.opacity(0.18)
+    case .pending:
+      return Color.secondary.opacity(0.14)
+    }
+  }
+
+  private var markerText: Color {
+    state == .current ? Color.accentColor : Color.secondary
+  }
+
+  private var titleStyle: some ShapeStyle {
+    switch state {
+    case .done:
+      return AnyShapeStyle(Color.accentColor)
+    case .current:
+      return AnyShapeStyle(.primary)
+    case .pending:
+      return AnyShapeStyle(.secondary)
+    }
+  }
+}
+
+private struct StatusBadge: View {
+  enum Tone {
+    case active
+    case success
+    case warning
+    case error
+  }
+
+  let text: String
+  let tone: Tone
+
+  var body: some View {
+    Label(text, systemImage: systemImage)
+      .font(.caption)
+      .lineLimit(2)
+      .foregroundStyle(foreground)
+      .padding(.horizontal, 9)
+      .padding(.vertical, 5)
+      .background(
+        Capsule()
+          .fill(background)
+      )
+      .frame(maxWidth: 220, alignment: .trailing)
+  }
+
+  private var systemImage: String {
+    switch tone {
+    case .active:
+      return "hourglass"
+    case .success:
+      return "checkmark.circle.fill"
+    case .warning:
+      return "exclamationmark.triangle.fill"
+    case .error:
+      return "xmark.octagon.fill"
+    }
+  }
+
+  private var foreground: Color {
+    switch tone {
+    case .active:
+      return .primary
+    case .success:
+      return .green
+    case .warning:
+      return .secondary
+    case .error:
+      return .red
+    }
+  }
+
+  private var background: Color {
+    switch tone {
+    case .active:
+      return Color.accentColor.opacity(0.12)
+    case .success:
+      return Color.green.opacity(0.12)
+    case .warning:
+      return Color.secondary.opacity(0.12)
+    case .error:
+      return Color.red.opacity(0.12)
+    }
+  }
+}
+
 private struct LanguagePicker: View {
   @Binding var language: AppLanguage
 
   var body: some View {
     HStack(spacing: 8) {
-      Text(L10n.string("language.label"))
-        .font(.caption)
+      Image(systemName: "globe")
         .foregroundStyle(.secondary)
+        .help(L10n.string("language.label"))
 
       Picker(L10n.string("language.label"), selection: $language) {
         ForEach(AppLanguage.allCases) { language in
@@ -776,7 +882,7 @@ private struct LanguagePicker: View {
       }
       .labelsHidden()
       .pickerStyle(.menu)
-      .frame(width: 130)
+      .frame(width: 118)
     }
   }
 }
@@ -797,139 +903,6 @@ private enum AppVersion {
     }
 
     return value
-  }
-}
-
-private struct ExtractionIllustration: View {
-  @Environment(\.colorScheme) private var colorScheme
-
-  var body: some View {
-    ZStack(alignment: .center) {
-      HStack(spacing: 15) {
-        disc
-
-        Image(systemName: "arrow.right")
-          .font(.title3.weight(.semibold))
-          .foregroundStyle(Color.accentColor)
-
-        files
-      }
-    }
-    .accessibilityHidden(true)
-  }
-
-  private var disc: some View {
-    ZStack {
-      Circle()
-        .fill(
-          AngularGradient(
-            colors: discColors,
-            center: .center,
-            angle: .degrees(-25)
-          )
-        )
-        .overlay(
-          Circle()
-            .fill(
-              RadialGradient(
-                colors: [
-                  Color.white.opacity(colorScheme == .dark ? 0.34 : 0.56),
-                  Color.clear
-                ],
-                center: UnitPoint(x: 0.28, y: 0.24),
-                startRadius: 2,
-                endRadius: 46
-              )
-            )
-        )
-        .overlay(Circle().stroke(Color.accentColor.opacity(colorScheme == .dark ? 0.5 : 0.32), lineWidth: 1.2))
-
-      Circle()
-        .stroke(Color.white.opacity(colorScheme == .dark ? 0.28 : 0.5), lineWidth: 0.8)
-        .frame(width: 42, height: 42)
-
-      Circle()
-        .fill(discCenterFill)
-        .frame(width: 16, height: 16)
-        .overlay(Circle().stroke(Color.secondary.opacity(colorScheme == .dark ? 0.52 : 0.35), lineWidth: 1))
-    }
-    .frame(width: 70, height: 70)
-    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.26 : 0.08), radius: 3, x: 0, y: 2)
-  }
-
-  private var files: some View {
-    ZStack(alignment: .bottomTrailing) {
-      file(offset: CGSize(width: -10, height: -12), opacity: 0.5)
-      file(offset: CGSize(width: -5, height: -6), opacity: 0.72)
-      file(offset: .zero, opacity: 1)
-    }
-    .frame(width: 48, height: 70)
-  }
-
-  private func file(offset: CGSize, opacity: Double) -> some View {
-    RoundedRectangle(cornerRadius: 5)
-      .fill(fileFill)
-      .overlay(
-        VStack(alignment: .leading, spacing: 5) {
-          Capsule()
-            .fill(Color.accentColor.opacity(0.75))
-            .frame(width: 22, height: 4)
-
-          Capsule()
-            .fill(fileLineFill.opacity(0.52))
-            .frame(width: 30, height: 4)
-
-          Capsule()
-            .fill(fileLineFill.opacity(0.38))
-            .frame(width: 24, height: 4)
-
-          Spacer(minLength: 0)
-        }
-        .padding(8),
-        alignment: .topLeading
-      )
-      .overlay(
-        RoundedRectangle(cornerRadius: 5)
-          .stroke(fileStroke, lineWidth: 1)
-      )
-      .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.08), radius: 3, x: 0, y: 2)
-      .frame(width: 42, height: 58)
-      .opacity(opacity)
-      .offset(offset)
-  }
-
-  private var discColors: [Color] {
-    if colorScheme == .dark {
-      return [
-        Color(red: 0.38, green: 0.68, blue: 0.95),
-        Color(red: 0.86, green: 0.94, blue: 1.0),
-        Color(red: 0.24, green: 0.38, blue: 0.68),
-        Color(red: 0.5, green: 0.78, blue: 1.0)
-      ]
-    }
-
-    return [
-      Color(red: 0.56, green: 0.78, blue: 1.0),
-      Color.white,
-      Color(red: 0.45, green: 0.64, blue: 0.88),
-      Color(red: 0.72, green: 0.88, blue: 1.0)
-    ]
-  }
-
-  private var discCenterFill: Color {
-    colorScheme == .dark ? Color(red: 0.18, green: 0.2, blue: 0.24) : Color(nsColor: .controlBackgroundColor)
-  }
-
-  private var fileFill: Color {
-    colorScheme == .dark ? Color(red: 0.9, green: 0.92, blue: 0.96) : Color(nsColor: .textBackgroundColor)
-  }
-
-  private var fileLineFill: Color {
-    colorScheme == .dark ? Color(red: 0.22, green: 0.26, blue: 0.32) : Color.secondary
-  }
-
-  private var fileStroke: Color {
-    colorScheme == .dark ? Color.white.opacity(0.22) : Color.secondary.opacity(0.22)
   }
 }
 
@@ -961,8 +934,8 @@ private struct MediaPlanListView: View {
 
   private static let headerHeight: CGFloat = 24
   private static let headerSpacing: CGFloat = 8
-  private static let rowHeight: CGFloat = 38
-  private static let rowSpacing: CGFloat = 8
+  private static let rowHeight: CGFloat = 48
+  private static let rowSpacing: CGFloat = 6
   private static let remainingHeight: CGFloat = 18
 
   static func estimatedHeight(itemCount: Int, maxVisibleRows: Int = 6) -> CGFloat {
@@ -1003,23 +976,37 @@ private struct MediaPlanListView: View {
 
       VStack(alignment: .leading, spacing: Self.rowSpacing) {
         ForEach(Array(plan.items.prefix(maxVisibleRows))) { item in
-          VStack(alignment: .leading, spacing: 2) {
-            HStack {
-              Text(item.durationText)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
+          HStack(spacing: 10) {
+            Text(item.durationText)
+              .font(.caption)
+              .monospacedDigit()
+              .foregroundStyle(.secondary)
+              .frame(width: 58, alignment: .leading)
 
+            VStack(alignment: .leading, spacing: 2) {
               Text(item.sourceName)
+                .font(.callout.weight(.medium))
+                .lineLimit(1)
+
+              Text(item.outputDisplayPath)
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
 
-            Text(item.outputDisplayPath)
+            Spacer(minLength: 8)
+
+            Image(systemName: "arrow.right.circle")
               .font(.caption)
-              .foregroundStyle(.secondary)
-              .lineLimit(1)
+              .foregroundStyle(.tertiary)
           }
+          .padding(.horizontal, 10)
           .frame(height: Self.rowHeight, alignment: .leading)
           .frame(maxWidth: .infinity, alignment: .leading)
+          .background(
+            RoundedRectangle(cornerRadius: 8)
+              .fill(Color(nsColor: .controlBackgroundColor))
+          )
         }
 
         if plan.items.count > maxVisibleRows {

@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 struct DropTargetView: View {
   let inputPath: String
   let isDisabled: Bool
+  let isScanning: Bool
+  let hasMediaPlan: Bool
   let onSelect: () -> Void
   let onDropPath: (String) -> Void
 
@@ -18,32 +20,28 @@ struct DropTargetView: View {
       ZStack {
         RoundedRectangle(cornerRadius: 8)
           .strokeBorder(
-            isTargeted ? Color.accentColor : Color.secondary.opacity(0.35),
+            borderColor,
             style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
           )
           .background(
             RoundedRectangle(cornerRadius: 8)
-              .fill(isTargeted ? Color.accentColor.opacity(0.08) : Color.clear)
+              .fill(backgroundColor)
           )
 
         HStack(spacing: 12) {
-          Image(systemName: inputPath.isEmpty ? "opticaldiscdrive" : "checkmark.circle")
-            .font(.title3)
-            .foregroundColor(inputPath.isEmpty ? .secondary : .green)
-            .frame(width: 26)
+          statusIcon
+            .frame(width: 28)
 
-          VStack(alignment: .leading, spacing: 2) {
-            Text(inputPath.isEmpty ? L10n.string("drop.emptyTitle") : URL(fileURLWithPath: inputPath).lastPathComponent)
+          VStack(alignment: .leading, spacing: 3) {
+            Text(title)
               .font(.body.weight(.medium))
               .lineLimit(1)
 
-            if !inputPath.isEmpty {
-              Text(inputPath)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .textSelection(.enabled)
-            }
+            Text(subtitle)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(inputPath.isEmpty ? 1 : 2)
+              .textSelection(.enabled)
           }
 
           Spacer()
@@ -57,10 +55,10 @@ struct DropTargetView: View {
           .disabled(isDisabled)
           .help(L10n.string("drop.chooseHelp"))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
       }
-      .frame(height: 64)
+      .frame(height: 82)
       .contentShape(Rectangle())
       .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isTargeted) { providers in
         guard !isDisabled else {
@@ -90,5 +88,77 @@ struct DropTargetView: View {
     }
 
     return true
+  }
+
+  @ViewBuilder
+  private var statusIcon: some View {
+    if isScanning {
+      ProgressView()
+        .controlSize(.small)
+    } else {
+      Image(systemName: iconName)
+        .font(.title3)
+        .foregroundColor(iconColor)
+    }
+  }
+
+  private var title: String {
+    guard !inputPath.isEmpty else {
+      return L10n.string("drop.emptyTitle")
+    }
+
+    return URL(fileURLWithPath: inputPath).lastPathComponent
+  }
+
+  private var subtitle: String {
+    inputPath.isEmpty ? L10n.string("drop.chooseHelp") : inputPath
+  }
+
+  private var iconName: String {
+    if hasMediaPlan {
+      return "checkmark.circle.fill"
+    }
+
+    return inputPath.isEmpty ? "opticaldiscdrive" : "opticaldiscdrive.fill"
+  }
+
+  private var iconColor: Color {
+    if hasMediaPlan {
+      return .green
+    }
+
+    return inputPath.isEmpty ? .secondary : .accentColor
+  }
+
+  private var borderColor: Color {
+    if isTargeted {
+      return .accentColor
+    }
+
+    if hasMediaPlan {
+      return Color.green.opacity(0.65)
+    }
+
+    if !inputPath.isEmpty || isScanning {
+      return Color.accentColor.opacity(0.65)
+    }
+
+    return Color.secondary.opacity(0.35)
+  }
+
+  private var backgroundColor: Color {
+    if isTargeted {
+      return Color.accentColor.opacity(0.1)
+    }
+
+    if hasMediaPlan {
+      return Color.green.opacity(0.08)
+    }
+
+    if !inputPath.isEmpty || isScanning {
+      return Color.accentColor.opacity(0.06)
+    }
+
+    return Color.clear
   }
 }

@@ -463,6 +463,27 @@ final class AppModel: ObservableObject {
     NSApp.terminate(nil)
   }
 
+  func resetForNewTask() {
+    guard !isBusy else {
+      return
+    }
+
+    var nextOptions = options
+    nextOptions.inputPath = ""
+    nextOptions.mediaName = ""
+
+    options = nextOptions
+    logText = ""
+    lastExitCode = nil
+    scanMessage = nil
+    mediaPlan = MediaPlan()
+    progress = ExtractionProgress()
+    completionSummary = nil
+    lastScanOptions = nil
+    runningOptions = nil
+    refreshStatus()
+  }
+
   private func finishScan(exitCode: Int32, options scanOptions: SplitterOptions) {
     isScanning = false
 

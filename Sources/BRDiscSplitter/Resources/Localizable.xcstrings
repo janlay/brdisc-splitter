@@ -31,6 +31,12 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下一步" } }
       }
     },
+    "button.newTask" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Task" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "新任务" } }
+      }
+    },
     "button.openInFinder" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Open in Finder" } },
