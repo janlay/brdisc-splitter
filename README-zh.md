@@ -1,24 +1,51 @@
-# brdisc-splitter
+# BRDisc Splitter
 
 中文 | [English](README.md)
 
-一个 Bash 命令行工具，用于从蓝光目录结构或 ISO 文件中提取媒体流，不转码。
+BRDisc Splitter 是一个 macOS 图形界面应用，用于从蓝光 ISO 文件或已挂载的蓝光目录中提取电影、剧集媒体流，不转码。普通用户主要使用 Mac App；内置命令行工具保留给高级用户和自动化场景。
 
-## 依赖
+## macOS App
+
+<p>
+  <img src="./images/preview-1.png" alt="BRDisc Splitter 准备界面" width="49%">
+  <img src="./images/preview-2.png" alt="BRDisc Splitter 输入界面" width="49%">
+</p>
+
+从源码构建并启动 App：
+
+```bash
+./script/build_and_run.sh
+```
+
+脚本会通过 `BRDiscSplitter.xcodeproj` 构建 `dist/BRDisc Splitter.app` 并启动它，内部可执行文件名为 `BRDiscSplitter`。GUI 默认调用 app 内置资源 `Contents/Resources/brdisc-splitter`；如果需要指定其他脚本位置，可以在高级区域选择。仓库根目录的 `./brdisc-splitter` 会转发到同一份 CLI 脚本，仍可单独调用。
+
+也可以直接用 Xcode 打开 `BRDiscSplitter.xcodeproj`，选择 `BRDiscSplitter` scheme 运行或测试。
+
+基本流程：
+
+- 准备 `.iso` 文件、蓝光根目录或 `BDMV` 目录。
+- 拖入 App，或点击 Browse 选择。
+- 查看识别出的电影或剧集媒体内容。
+- 设置输出目录和提取选项。
+- 开始提取；需要排查时再展开日志。
+
+## 运行依赖
+
+BRDisc Splitter 依赖这些外部工具：
 
 - `ffmpeg`
 - `ffprobe`
 - `jq`
 
-macOS 下处理 ISO 还会使用系统工具 `hdiutil` 和 `plutil`。Linux 下自动挂载 ISO 优先使用 `udisksctl`；否则需要 root 环境支持只读 loop mount。
+macOS 下处理 ISO 还会使用系统工具 `hdiutil` 和 `plutil`。
 
-## 用法
+## 高级命令行用法
+
+命令行工具面向高级用户、脚本和自动化场景，使用与 App 相同的提取逻辑。
 
 ```bash
 ./brdisc-splitter -i INPUT [options]
 ```
-
-工具会自动检测来源是电影还是剧集。电影使用最长的候选流；剧集按 `.m2ts` 文件名顺序生成剧集文件。默认输出 mkv 容器，不转码。
 
 提取到当前目录：
 
@@ -38,7 +65,7 @@ macOS 下处理 ISO 还会使用系统工具 `hdiutil` 和 `plutil`。Linux 下�
 ./brdisc-splitter -i Show.iso --dry-run
 ```
 
-常用选项：
+常用 CLI 选项：
 
 - `-o, --output DIR`：输出目录，默认当前目录。
 - `--min-duration SEC`：过滤短流，默认 `1200`。
@@ -47,6 +74,12 @@ macOS 下处理 ISO 还会使用系统工具 `hdiutil` 和 `plutil`。Linux 下�
 - `--episode-start N`：设置起始集号。
 - `--use-original-media-container`：保留源媒体容器，例如输出 `.m2ts`。
 - `--overwrite`：覆盖已有输出文件。
+
+Linux 下 CLI 自动挂载 ISO 优先使用 `udisksctl`；否则需要 root 环境支持只读 loop mount。
+
+## 提取行为
+
+BRDisc Splitter 会自动检测来源是电影还是剧集。电影使用最长的候选流；剧集按 `.m2ts` 文件名顺序生成剧集文件。默认输出 mkv 容器，不转码。
 
 剧集输出只有在检测到多季时才创建 `Season NN` 目录。单季输出会直接写入媒体目录，文件名仍包含 `SxxEyy`。
 

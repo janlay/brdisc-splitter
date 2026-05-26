@@ -1,24 +1,51 @@
-# brdisc-splitter
+# BRDisc Splitter
 
 [中文](README-zh.md) | English
 
-A Bash command-line tool for extracting media streams from Blu-ray directory structures or ISO files without transcoding.
+BRDisc Splitter is a macOS app for extracting movie or TV episode streams from Blu-ray ISO files and mounted Blu-ray directories without transcoding. The app provides the normal user workflow; the bundled command-line tool remains available for advanced users and automation.
 
-## Dependencies
+## macOS App
+
+<p>
+  <img src="./images/preview-1.png" alt="BRDisc Splitter prepare screen" width="49%">
+  <img src="./images/preview-2.png" alt="BRDisc Splitter input screen" width="49%">
+</p>
+
+Build and launch the app from source:
+
+```bash
+./script/build_and_run.sh
+```
+
+The script builds `dist/BRDisc Splitter.app` through `BRDiscSplitter.xcodeproj` and launches it. Its internal executable is named `BRDiscSplitter`. The GUI uses the bundled `Contents/Resources/brdisc-splitter` script by default; you can pick a different script in the advanced section. The repository-root `./brdisc-splitter` wrapper forwards to the same CLI script and remains callable on its own.
+
+You can also open `BRDiscSplitter.xcodeproj` in Xcode and use the `BRDiscSplitter` scheme to run or test the app.
+
+Basic workflow:
+
+- Prepare a `.iso` file, a Blu-ray root directory, or a `BDMV` directory.
+- Drop it into the app or choose it with Browse.
+- Review detected movie or episode streams.
+- Choose output and extraction options.
+- Start extraction and inspect logs only when needed.
+
+## Requirements
+
+BRDisc Splitter uses these external tools:
 
 - `ffmpeg`
 - `ffprobe`
 - `jq`
 
-ISO handling on macOS also uses the system tools `hdiutil` and `plutil`. On Linux, ISO auto-mounting prefers `udisksctl`; otherwise it requires a root-capable read-only loop mount.
+ISO handling on macOS also uses the system tools `hdiutil` and `plutil`.
 
-## Usage
+## Advanced CLI Usage
+
+The command-line tool is intended for advanced users, scripting, and automation. It uses the same extraction logic as the app.
 
 ```bash
 ./brdisc-splitter -i INPUT [options]
 ```
-
-The tool automatically detects whether the source is a movie or a TV series. Movies use the longest candidate stream. TV episodes are generated from `.m2ts` streams in filename order. Output defaults to the mkv container without transcoding.
 
 Extract to the current directory:
 
@@ -38,7 +65,7 @@ Preview the extraction plan without writing media files:
 ./brdisc-splitter -i Show.iso --dry-run
 ```
 
-Common options:
+Common CLI options:
 
 - `-o, --output DIR`: Output directory. Defaults to the current directory.
 - `--min-duration SEC`: Filter out short streams. Defaults to `1200`.
@@ -47,6 +74,12 @@ Common options:
 - `--episode-start N`: Set the first episode number.
 - `--use-original-media-container`: Preserve the source media container, for example output `.m2ts`.
 - `--overwrite`: Overwrite existing output files.
+
+On Linux, CLI ISO auto-mounting prefers `udisksctl`; otherwise it requires a root-capable read-only loop mount.
+
+## Extraction Behavior
+
+BRDisc Splitter automatically detects whether the source is a movie or a TV series. Movies use the longest candidate stream. TV episodes are generated from `.m2ts` streams in filename order. Output defaults to the mkv container without transcoding.
 
 TV output creates a `Season NN` directory only when multiple seasons are detected. Single-season output is written directly under the media directory, while filenames still include `SxxEyy`.
 

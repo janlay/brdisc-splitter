@@ -1,0 +1,672 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "app.quit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quit BRDisc Splitter" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "退出 BRDisc Splitter" } }
+      }
+    },
+    "button.back" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Back" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "返回" } }
+      }
+    },
+    "button.cancel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "取消" } }
+      }
+    },
+    "button.continue" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Continue" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "继续" } }
+      }
+    },
+    "button.next" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Next" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下一步" } }
+      }
+    },
+    "button.openInFinder" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open in Finder" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在 Finder 中打开" } }
+      }
+    },
+    "button.quit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quit" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "退出" } }
+      }
+    },
+    "button.rescanAndContinue" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rescan and Continue" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重新扫描并继续" } }
+      }
+    },
+    "button.running" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Running..." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "执行中..." } }
+      }
+    },
+    "button.start" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "开始" } }
+      }
+    },
+    "complete.dryRunSummary" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Preview complete. %d files would be extracted." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "预览完成。计划提取 %d 个文件。" } }
+      }
+    },
+    "complete.ended" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The task has ended." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "任务已结束。" } }
+      }
+    },
+    "complete.summary" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Extracted %d files using %@ of disk space." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已提取 %d 个文件，占用 %@ 磁盘空间。" } }
+      }
+    },
+    "complete.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Extraction Complete" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "提取完成" } }
+      }
+    },
+    "drop.browse" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Browse" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "浏览" } }
+      }
+    },
+    "drop.chooseHelp" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose an ISO file or Blu-ray directory" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择 ISO 文件或蓝光目录" } }
+      }
+    },
+    "drop.emptyTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop ISO or Blu-ray Directory" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "拖入 ISO 或蓝光目录" } }
+      }
+    },
+    "drop.input" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Input" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入" } }
+      }
+    },
+    "error.extractionFailed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Extraction failed: exit code %d. Details are in the log." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "提取失败：退出码 %d。详细信息在日志中。" } }
+      }
+    },
+    "field.cliScript" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "CLI Script" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "命令行脚本" } }
+      }
+    },
+    "field.mediaName" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Media Name" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "媒体名称" } }
+      }
+    },
+    "field.mediaName.placeholder" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Derived from input" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从输入路径推导" } }
+      }
+    },
+    "field.outputDirectory" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Output Directory" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输出目录" } }
+      }
+    },
+    "intro.description" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Extract movie or TV episode streams from Blu-ray sources without transcoding." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从蓝光源中提取电影或剧集媒体流，不进行转码。" } }
+      }
+    },
+    "intro.requirement" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Prepare a .iso file, a Blu-ray root directory, or a BDMV directory before continuing." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "继续前请准备 .iso 文件、蓝光根目录或 BDMV 目录。" } }
+      }
+    },
+    "language.label" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Language" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "语言" } }
+      }
+    },
+    "list.separator" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : ", " } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "，" } }
+      }
+    },
+    "log.clear" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Clear Log" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "清空日志" } }
+      }
+    },
+    "log.copy" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Copy Log" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "复制日志" } }
+      }
+    },
+    "log.empty" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waiting to run" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "等待运行" } }
+      }
+    },
+    "log.hide" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hide log area" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "隐藏日志区域" } }
+      }
+    },
+    "log.show" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show log area" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示日志区域" } }
+      }
+    },
+    "log.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Output Log" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输出日志" } }
+      }
+    },
+    "media.type.movie" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Movie" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "电影" } }
+      }
+    },
+    "media.type.series" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Series" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "剧集" } }
+      }
+    },
+    "media.type.unknown" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unknown" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未知" } }
+      }
+    },
+    "mediaPlan.fileCount" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%d files" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%d 个文件" } }
+      }
+    },
+    "mediaPlan.identifiedAs" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Identified as: %@" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "识别为：%@" } }
+      }
+    },
+    "mediaPlan.remainingCount" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%d more files" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "另有 %d 个文件" } }
+      }
+    },
+    "menu.cancel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "取消" } }
+      }
+    },
+    "menu.chooseInput" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose Input..." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择输入..." } }
+      }
+    },
+    "menu.file" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "File" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "文件" } }
+      }
+    },
+    "menu.start" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "开始" } }
+      }
+    },
+    "option.dryRun" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Preview only" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "仅预览" } }
+      }
+    },
+    "option.episodeStart" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Starting Episode" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "起始集号" } }
+      }
+    },
+    "option.jobs" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Parallel Jobs" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "并行任务" } }
+      }
+    },
+    "option.minDuration" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Minimum Duration" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最小时长" } }
+      }
+    },
+    "option.noMediaDir" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skip media folder" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "不创建媒体目录" } }
+      }
+    },
+    "option.noSeasonDir" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skip season folder" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "不创建季目录" } }
+      }
+    },
+    "option.originalContainer" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Keep original container" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保留原始容器" } }
+      }
+    },
+    "option.originalContainer.description" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Preserve the source extension such as .m2ts instead of remuxing to .mkv." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保留源文件扩展名，例如 .m2ts，而不是重新封装为 .mkv。" } }
+      }
+    },
+    "option.overwrite" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Overwrite existing files" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "覆盖已有文件" } }
+      }
+    },
+    "option.overwrite.description" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Replace existing output files instead of skipping them." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "遇到已存在的输出文件时重新写入，而不是跳过。" } }
+      }
+    },
+    "option.outputSameAsISO" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Same as .iso file" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "与 .iso 文件相同" } }
+      }
+    },
+    "option.outputSameAsISO.help" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Use the folder that contains the selected .iso file." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "使用所选 .iso 文件所在目录作为输出目录。" } }
+      }
+    },
+    "option.season" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Season" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "季号" } }
+      }
+    },
+    "panel.cli.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose brdisc-splitter Script" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择 brdisc-splitter 脚本" } }
+      }
+    },
+    "panel.input.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose Blu-ray ISO or Directory" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择蓝光 ISO 或目录" } }
+      }
+    },
+    "panel.output.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose Output Directory" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择输出目录" } }
+      }
+    },
+    "progress.extracting" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Extracting" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在提取" } }
+      }
+    },
+    "progress.preview" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Previewing" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在预览" } }
+      }
+    },
+    "progress.waiting" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waiting to start" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "等待开始" } }
+      }
+    },
+    "runner.error.busy" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A task is already running." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已有任务正在运行。" } }
+      }
+    },
+    "section.advanced" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Advanced" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "高级" } }
+      }
+    },
+    "status.canceling" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Canceling" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在取消" } }
+      }
+    },
+    "status.extracting" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Extracting" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在提取" } }
+      }
+    },
+    "status.failedWithCode" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Failed: exit code %d" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "失败：退出码 %d" } }
+      }
+    },
+    "status.finished" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Complete" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成" } }
+      }
+    },
+    "status.needRescan" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rescan required" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "需要重新扫描" } }
+      }
+    },
+    "status.planChangedRescan" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Options changed. Rescan media content before continuing." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选项已变更，继续前需要重新扫描媒体内容。" } }
+      }
+    },
+    "status.planChangedRescanShort" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Options changed. Rescan media content." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选项已变更，请重新扫描媒体内容。" } }
+      }
+    },
+    "status.previewing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Previewing" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在预览" } }
+      }
+    },
+    "status.ready" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ready" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "就绪" } }
+      }
+    },
+    "status.rescanningWithOptions" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rescanning with current options" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在按当前选项重新扫描" } }
+      }
+    },
+    "status.scanEmpty" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No extractable media content was found." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能识别可提取的媒体内容。" } }
+      }
+    },
+    "status.scanFailed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Scan failed" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "扫描失败" } }
+      }
+    },
+    "status.scanFailedWithCode" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Scan failed: exit code %d" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "扫描失败：退出码 %d" } }
+      }
+    },
+    "status.scanningMedia" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Scanning media content" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在扫描媒体内容" } }
+      }
+    },
+    "status.scanRecognized" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Identified %d media files" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已识别 %d 个媒体文件" } }
+      }
+    },
+    "summary.advanced" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Advanced" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "高级选项" } }
+      }
+    },
+    "summary.autoDerived" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Auto derived" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动推导" } }
+      }
+    },
+    "summary.common" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Common" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "常规选项" } }
+      }
+    },
+    "summary.default" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Default" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "默认" } }
+      }
+    },
+    "summary.episodeStart" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "E%@ start" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "E%@ 起" } }
+      }
+    },
+    "summary.input" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Input" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入" } }
+      }
+    },
+    "summary.jobs" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%d jobs" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%d 个并行任务" } }
+      }
+    },
+    "summary.mediaName" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Media Name" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "媒体名称" } }
+      }
+    },
+    "summary.minDuration" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%d sec or longer" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%d 秒以上" } }
+      }
+    },
+    "summary.output" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Output" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输出" } }
+      }
+    },
+    "summary.type" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Type" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "类型" } }
+      }
+    },
+    "unit.seconds" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "sec" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "秒" } }
+      }
+    },
+    "validation.cliNotFound" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not find the brdisc-splitter CLI script." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "找不到 brdisc-splitter CLI 脚本。" } }
+      }
+    },
+    "validation.cliPathRequired" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "CLI script path is required." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "CLI 脚本路径不能为空。" } }
+      }
+    },
+    "validation.episodeStartPositive" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Starting episode must be greater than 0." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "起始集号必须大于 0。" } }
+      }
+    },
+    "validation.inputInvalid" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Input must be a .iso file or Blu-ray directory." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入必须是 .iso 文件或蓝光目录。" } }
+      }
+    },
+    "validation.inputMissing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Input path does not exist." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入路径不存在。" } }
+      }
+    },
+    "validation.inputRequired" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose an input file or directory." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请选择输入文件或目录。" } }
+      }
+    },
+    "validation.jobsPositive" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Parallel job count must be greater than 0." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "并行任务数必须大于 0。" } }
+      }
+    },
+    "validation.minDurationPositive" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Minimum duration must be greater than 0." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最小时长必须大于 0。" } }
+      }
+    },
+    "validation.seasonPositive" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Season must be greater than 0." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "季号必须大于 0。" } }
+      }
+    },
+    "validation.streamMissing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not find BDMV/STREAM in the input directory." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入目录中未找到 BDMV/STREAM。" } }
+      }
+    },
+    "wizard.step.complete.count" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Complete" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成" } }
+      }
+    },
+    "wizard.step.complete.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Complete" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成" } }
+      }
+    },
+    "wizard.step.confirm.count" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Step 4/4" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "步骤 4/4" } }
+      }
+    },
+    "wizard.step.confirm.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirm and Extract" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "确认并提取" } }
+      }
+    },
+    "wizard.step.input.count" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Step 2/4" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "步骤 2/4" } }
+      }
+    },
+    "wizard.step.input.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose Input" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择输入" } }
+      }
+    },
+    "wizard.step.intro.count" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Step 1/4" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "步骤 1/4" } }
+      }
+    },
+    "wizard.step.intro.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Prepare" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "准备" } }
+      }
+    },
+    "wizard.step.options.count" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Step 3/4" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "步骤 3/4" } }
+      }
+    },
+    "wizard.step.options.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Set Options" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置选项" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

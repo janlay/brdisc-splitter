@@ -1,0 +1,887 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="1.0"
+
+INPUT=""
+OUTPUT=""
+TYPE=""
+TYPE_REASON=""
+MEDIA_NAME=""
+SEASON=1
+EPISODE_START=1
+MIN_DURATION=1200
+JOBS=1
+NO_MEDIA_DIR=0
+NO_SEASON_DIR=0
+OVERWRITE=0
+DRY_RUN=0
+USE_ORIGINAL_MEDIA_CONTAINER=0
+
+TMP_DIR=""
+ISO_MOUNT_POINT=""
+ISO_MOUNTED_BY_US=0
+ISO_MOUNT_BACKEND=""
+ISO_LOOP_DEVICE=""
+BDMV_DIR=""
+
+PIDS=()
+PID_LABELS=()
+
+usage() {
+  cat <<'EOF'
+brdisc-splitter extracts Blu-ray source streams without transcoding.
+
+Usage:
+  brdisc-splitter -i INPUT [options]
+
+Required:
+  -i, --input PATH        Blu-ray root, BDMV directory, or ISO file
+
+Output:
+  -o, --output DIR        Output directory (default: current directory)
+
+Naming:
+  -n, --name NAME         Media name, defaults to input basename
+      --season N          Season number for series output (default: 1)
+      --episode-start N   First episode number for series output (default: 1)
+      --no-media-dir      Write files directly under OUTPUT
+      --no-season-dir     Never create Season NN directory
+
+Extraction:
+      --min-duration SEC  Minimum stream duration to extract (default: 1200)
+  -j, --jobs N            Parallel extraction jobs (default: 1)
+      --use-original-media-container
+                           Keep source container instead of remuxing to mkv
+      --overwrite         Overwrite existing outputs
+      --dry-run           Print planned outputs without extracting
+
+Other:
+  -h, --help              Show this help
+      --version           Show version
+EOF
+}
+
+die() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+info() {
+  printf '%s\n' "$*" >&2
+}
+
+is_positive_integer() {
+  case "${1:-}" in
+    ''|*[!0-9]*) return 1 ;;
+    *) [ "$1" -gt 0 ] ;;
+  esac
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "missing dependency: $1"
+}
+
+abs_path() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    *) printf '%s/%s\n' "$PWD" "$1" ;;
+  esac
+}
+
+trim_trailing_slashes() {
+  local value=$1
+  while [ "${#value}" -gt 1 ] && [ "${value%/}" != "$value" ]; do
+    value=${value%/}
+  done
+  printf '%s\n' "$value"
+}
+
+sanitize_name() {
+  printf '%s' "$1" | tr '/:' '__' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+default_media_name() {
+  local source=$1
+  local base
+
+  source=$(trim_trailing_slashes "$source")
+  base=$(basename "$source")
+
+  if [ "$base" = "BDMV" ]; then
+    base=$(basename "$(dirname "$source")")
+  fi
+
+  case "$base" in
+    *.iso|*.ISO) base=${base%.*} ;;
+  esac
+
+  sanitize_name "$base"
+}
+
+parse_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -i|--input)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        INPUT=$2
+        shift 2
+        ;;
+      -o|--output)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        OUTPUT=$2
+        shift 2
+        ;;
+      -n|--name)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        MEDIA_NAME=$2
+        shift 2
+        ;;
+      --season)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        SEASON=$2
+        shift 2
+        ;;
+      --episode-start)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        EPISODE_START=$2
+        shift 2
+        ;;
+      --min-duration)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        MIN_DURATION=$2
+        shift 2
+        ;;
+      -j|--jobs)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        JOBS=$2
+        shift 2
+        ;;
+      --use-original-media-container)
+        USE_ORIGINAL_MEDIA_CONTAINER=1
+        shift
+        ;;
+      --no-media-dir)
+        NO_MEDIA_DIR=1
+        shift
+        ;;
+      --no-season-dir)
+        NO_SEASON_DIR=1
+        shift
+        ;;
+      --overwrite)
+        OVERWRITE=1
+        shift
+        ;;
+      --dry-run)
+        DRY_RUN=1
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      --version)
+        printf '%s\n' "$VERSION"
+        exit 0
+        ;;
+      *)
+        die "unknown option: $1"
+        ;;
+    esac
+  done
+
+  [ -n "$INPUT" ] || die "input is required"
+
+  is_positive_integer "$SEASON" || die "--season must be a positive integer"
+  is_positive_integer "$EPISODE_START" || die "--episode-start must be a positive integer"
+  is_positive_integer "$MIN_DURATION" || die "--min-duration must be a positive integer"
+  is_positive_integer "$JOBS" || die "--jobs must be a positive integer"
+
+  INPUT=$(abs_path "$INPUT")
+  if [ -n "$OUTPUT" ]; then
+    OUTPUT=$(trim_trailing_slashes "$(abs_path "$OUTPUT")")
+  else
+    OUTPUT=$PWD
+  fi
+
+  if [ -z "$MEDIA_NAME" ]; then
+    MEDIA_NAME=$(default_media_name "$INPUT")
+  else
+    MEDIA_NAME=$(sanitize_name "$MEDIA_NAME")
+  fi
+
+  [ -n "$MEDIA_NAME" ] || die "media name is empty"
+}
+
+check_dependencies() {
+  require_cmd ffmpeg
+  require_cmd ffprobe
+  require_cmd jq
+}
+
+make_tmp_dir() {
+  TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/brdisc-splitter.XXXXXX")
+}
+
+cleanup() {
+  local rc=$?
+
+  if [ -n "$ISO_MOUNT_POINT" ] && [ "$ISO_MOUNTED_BY_US" -eq 1 ]; then
+    case "$ISO_MOUNT_BACKEND" in
+      macos)
+        hdiutil detach "$ISO_MOUNT_POINT" >/dev/null 2>&1 || true
+        ;;
+      linux-udisksctl)
+        if [ -n "$ISO_LOOP_DEVICE" ]; then
+          udisksctl unmount -b "$ISO_LOOP_DEVICE" >/dev/null 2>&1 || true
+          udisksctl loop-delete -b "$ISO_LOOP_DEVICE" >/dev/null 2>&1 || true
+        fi
+        ;;
+      linux-mount)
+        umount "$ISO_MOUNT_POINT" >/dev/null 2>&1 || true
+        ;;
+    esac
+  fi
+
+  if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
+    rm -rf "$TMP_DIR"
+  fi
+
+  exit "$rc"
+}
+
+interrupt() {
+  trap - INT TERM
+  if [ "${#PIDS[@]}" -gt 0 ]; then
+    kill "${PIDS[@]}" >/dev/null 2>&1 || true
+  fi
+  exit 130
+}
+
+mounted_macos_iso_point() {
+  local iso=$1
+
+  hdiutil info -plist \
+    | plutil -convert json -o - - \
+    | jq -r --arg iso "$iso" '
+        .images[]?
+        | select((.["image-path"] == $iso) or (.["image-alias"] == $iso))
+        | .["system-entities"][]?
+        | select(.["mount-point"])
+        | .["mount-point"]
+      ' \
+    | head -n 1
+}
+
+mount_iso_macos() {
+  local iso=$1
+  local json
+
+  require_cmd hdiutil
+  require_cmd plutil
+
+  ISO_MOUNT_POINT=$(mounted_macos_iso_point "$iso")
+  if [ -n "$ISO_MOUNT_POINT" ]; then
+    ISO_MOUNTED_BY_US=0
+    ISO_MOUNT_BACKEND="macos"
+    return
+  fi
+
+  if ! json=$(hdiutil attach -readonly -nobrowse -plist "$iso" | plutil -convert json -o - -); then
+    ISO_MOUNT_POINT=$(mounted_macos_iso_point "$iso")
+    if [ -n "$ISO_MOUNT_POINT" ]; then
+      ISO_MOUNTED_BY_US=0
+      ISO_MOUNT_BACKEND="macos"
+      return
+    fi
+    die "failed to mount ISO: $iso"
+  fi
+
+  ISO_MOUNT_POINT=$(printf '%s' "$json" | jq -r '.["system-entities"][]? | select(.["mount-point"]) | .["mount-point"]' | head -n 1)
+
+  [ -n "$ISO_MOUNT_POINT" ] || die "failed to find ISO mount point"
+  ISO_MOUNTED_BY_US=1
+  ISO_MOUNT_BACKEND="macos"
+}
+
+mounted_linux_iso_point() {
+  local iso=$1
+  local loop_device
+  local mount_point
+
+  if command -v findmnt >/dev/null 2>&1; then
+    mount_point=$(findmnt -rn -S "$iso" -o TARGET 2>/dev/null | head -n 1 || true)
+    if [ -n "$mount_point" ]; then
+      printf '%s\n' "$mount_point"
+      return
+    fi
+  fi
+
+  if command -v losetup >/dev/null 2>&1 && command -v findmnt >/dev/null 2>&1; then
+    while IFS= read -r loop_device; do
+      [ -n "$loop_device" ] || continue
+      mount_point=$(findmnt -rn -S "$loop_device" -o TARGET 2>/dev/null | head -n 1 || true)
+      if [ -n "$mount_point" ]; then
+        printf '%s\n' "$mount_point"
+        return
+      fi
+    done <<EOF
+$(losetup -j "$iso" 2>/dev/null | sed 's/:.*//')
+EOF
+  fi
+}
+
+mount_iso_linux_with_udisksctl() {
+  local iso=$1
+  local loop_output
+  local mount_output
+
+  command -v udisksctl >/dev/null 2>&1 || return 1
+
+  loop_output=$(udisksctl loop-setup -r -f "$iso" 2>&1) || return 1
+  ISO_LOOP_DEVICE=$(printf '%s\n' "$loop_output" | grep -Eo '/dev/loop[0-9]+' | head -n 1)
+  if [ -z "$ISO_LOOP_DEVICE" ]; then
+    return 1
+  fi
+
+  if ! mount_output=$(udisksctl mount -b "$ISO_LOOP_DEVICE" 2>&1); then
+    udisksctl loop-delete -b "$ISO_LOOP_DEVICE" >/dev/null 2>&1 || true
+    ISO_LOOP_DEVICE=""
+    return 1
+  fi
+
+  ISO_MOUNT_POINT=$(printf '%s\n' "$mount_output" | sed -n 's/^.* at //;s/\.$//p' | head -n 1)
+  if [ -z "$ISO_MOUNT_POINT" ]; then
+    udisksctl unmount -b "$ISO_LOOP_DEVICE" >/dev/null 2>&1 || true
+    udisksctl loop-delete -b "$ISO_LOOP_DEVICE" >/dev/null 2>&1 || true
+    ISO_LOOP_DEVICE=""
+    return 1
+  fi
+
+  ISO_MOUNTED_BY_US=1
+  ISO_MOUNT_BACKEND="linux-udisksctl"
+}
+
+mount_iso_linux_with_mount() {
+  local iso=$1
+  local mount_point
+
+  command -v mount >/dev/null 2>&1 || return 1
+  command -v id >/dev/null 2>&1 || return 1
+  [ "$(id -u)" -eq 0 ] || return 1
+
+  mount_point=$TMP_DIR/iso
+  mkdir -p "$mount_point"
+
+  mount -o loop,ro "$iso" "$mount_point" >/dev/null 2>&1 || return 1
+
+  ISO_MOUNT_POINT=$mount_point
+  ISO_MOUNTED_BY_US=1
+  ISO_MOUNT_BACKEND="linux-mount"
+}
+
+mount_iso_linux() {
+  local iso=$1
+
+  ISO_MOUNT_POINT=$(mounted_linux_iso_point "$iso")
+  if [ -n "$ISO_MOUNT_POINT" ]; then
+    ISO_MOUNTED_BY_US=0
+    ISO_MOUNT_BACKEND="linux-existing"
+    return
+  fi
+
+  if mount_iso_linux_with_udisksctl "$iso"; then
+    return
+  fi
+
+  if mount_iso_linux_with_mount "$iso"; then
+    return
+  fi
+
+  die "failed to mount ISO on Linux; install udisksctl, run as root, or mount it manually and pass the directory"
+}
+
+mount_iso() {
+  local iso=$1
+
+  case "$(uname -s)" in
+    Darwin)
+      mount_iso_macos "$iso"
+      ;;
+    Linux)
+      mount_iso_linux "$iso"
+      ;;
+    *)
+      die "ISO auto-mount is supported only on macOS and Linux; mount it manually and pass the directory"
+      ;;
+  esac
+}
+
+resolve_source() {
+  local source=$1
+  local lower
+
+  [ -e "$source" ] || die "input does not exist: $source"
+
+  lower=$(printf '%s' "$source" | tr '[:upper:]' '[:lower:]')
+  case "$lower" in
+    *.iso)
+      mount_iso "$source"
+      source=$ISO_MOUNT_POINT
+      ;;
+  esac
+
+  source=$(trim_trailing_slashes "$source")
+
+  if [ -d "$source/BDMV/STREAM" ]; then
+    BDMV_DIR=$source/BDMV
+  elif [ "$(basename "$source")" = "BDMV" ] && [ -d "$source/STREAM" ]; then
+    BDMV_DIR=$source
+  else
+    die "could not find BDMV/STREAM under input"
+  fi
+}
+
+probe_duration() {
+  local file=$1
+  local duration
+
+  duration=$(ffprobe -v error \
+    -show_entries format=duration:stream=codec_type \
+    -of json "$file" \
+    2>/dev/null \
+    | jq -er 'select([.streams[]?.codec_type] | index("video")) | .format.duration | tonumber' 2>/dev/null) || return 1
+
+  awk -v duration="$duration" 'BEGIN { printf "%d\n", duration + 0.5 }'
+}
+
+discover_candidates() {
+  local catalog=$1
+  local stream_dir=$BDMV_DIR/STREAM
+  local file
+  local seconds
+
+  : > "$catalog"
+
+  LC_ALL=C find "$stream_dir" -type f -iname '*.m2ts' | LC_ALL=C sort | while IFS= read -r file; do
+    seconds=$(probe_duration "$file" || true)
+    if [ -n "$seconds" ] && [ "$seconds" -ge "$MIN_DURATION" ]; then
+      printf '%s\t%s\n' "$seconds" "$file" >> "$catalog"
+    fi
+  done
+
+  [ -s "$catalog" ] || die "no candidate streams found; try lowering --min-duration"
+}
+
+source_looks_like_series() {
+  local value
+
+  value=$(printf '%s\n%s\n' "$INPUT" "$MEDIA_NAME" | tr '[:upper:]' '[:lower:]')
+
+  case "$value" in
+    *"tv shows"*|*"tv_shows"*|*"tv-shows"*|*"season "*|*"season_"*|*"season-"*|*s[0-9][0-9]*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+source_has_multiple_seasons() {
+  local value
+  local count
+
+  value=$(printf '%s\n%s\n' "$INPUT" "$MEDIA_NAME" | tr '[:upper:]' '[:lower:]')
+
+  if [[ $value =~ s[0-9]{1,2}[[:space:]_.-]*(to|and|,|&|\+|-)[[:space:]_.-]*s?[0-9]{1,2} ]]; then
+    return 0
+  fi
+
+  if [[ $value =~ seasons?[[:space:]_.-]*[0-9]{1,2}[[:space:]_.-]*(to|and|,|&|\+|-)[[:space:]_.-]*[0-9]{1,2} ]]; then
+    return 0
+  fi
+
+  count=$(
+    printf '%s\n' "$value" \
+      | grep -Eo 's[0-9]{1,2}|season[[:space:]_.-]*[0-9]{1,2}' \
+      | sed -E 's/^season[[:space:]_.-]*/s/' \
+      | sort -u \
+      | wc -l \
+      | tr -d '[:space:]' \
+      || true
+  )
+
+  [ "${count:-0}" -gt 1 ]
+}
+
+detect_media_type() {
+  local catalog=$1
+  local count
+  local longest
+  local second
+
+  count=$(count_tasks "$catalog")
+  longest=$(LC_ALL=C sort -nr -k1,1 "$catalog" | awk 'NR == 1 { print $1 }')
+  second=$(LC_ALL=C sort -nr -k1,1 "$catalog" | awk 'NR == 2 { print $1 }')
+
+  if [ "$count" -le 1 ]; then
+    TYPE="movie"
+    TYPE_REASON="only one candidate stream"
+    return
+  fi
+
+  if source_looks_like_series; then
+    TYPE="series"
+    TYPE_REASON="input path or media name has series hints"
+    return
+  fi
+
+  if [ -n "$second" ] && awk -v second="$second" -v longest="$longest" 'BEGIN { exit !(second >= longest * 0.60) }'; then
+    if [ "$count" -ge 3 ] || [ "$longest" -le 5400 ]; then
+      TYPE="series"
+      TYPE_REASON="multiple similar-length candidate streams"
+      return
+    fi
+  fi
+
+  TYPE="movie"
+  TYPE_REASON="one dominant candidate stream"
+}
+
+select_candidates() {
+  local catalog=$1
+  local selected=$2
+
+  case "$TYPE" in
+    movie)
+      LC_ALL=C sort -nr -k1,1 "$catalog" | head -n 1 > "$selected"
+      ;;
+    series)
+      LC_ALL=C sort -k2,2 "$catalog" > "$selected"
+      ;;
+  esac
+}
+
+format_duration() {
+  local seconds=$1
+  local hours minutes rest
+
+  hours=$((seconds / 3600))
+  rest=$((seconds % 3600))
+  minutes=$((rest / 60))
+  seconds=$((rest % 60))
+  printf '%02d:%02d:%02d\n' "$hours" "$minutes" "$seconds"
+}
+
+should_create_season_dir() {
+  [ "$TYPE" = "series" ] || return 1
+  [ "$NO_SEASON_DIR" -eq 0 ] || return 1
+  source_has_multiple_seasons
+}
+
+output_base_dir() {
+  local base=$OUTPUT
+
+  if [ "$NO_MEDIA_DIR" -eq 0 ]; then
+    base=$base/$MEDIA_NAME
+  fi
+
+  if should_create_season_dir; then
+    base=$(printf '%s/Season %02d' "$base" "$SEASON")
+  fi
+
+  printf '%s\n' "$base"
+}
+
+movie_output_path() {
+  local base=$1
+  local source=$2
+  printf '%s/%s.%s\n' "$base" "$MEDIA_NAME" "$(output_extension "$source")"
+}
+
+episode_output_path() {
+  local base=$1
+  local episode=$2
+  local source=$3
+  printf '%s/%s S%02dE%02d.%s\n' "$base" "$MEDIA_NAME" "$SEASON" "$episode" "$(output_extension "$source")"
+}
+
+source_extension() {
+  local source=$1
+  local base
+
+  base=$(basename "$source")
+  case "$base" in
+    *.*) printf '%s\n' "${base##*.}" ;;
+    *) die "could not determine source extension: $source" ;;
+  esac
+}
+
+output_extension() {
+  local source=$1
+
+  if [ "$USE_ORIGINAL_MEDIA_CONTAINER" -eq 1 ]; then
+    source_extension "$source"
+    return
+  fi
+
+  printf 'mkv\n'
+}
+
+muxer_for_output() {
+  local output=$1
+  local ext
+
+  ext=$(printf '%s' "${output##*.}" | tr '[:upper:]' '[:lower:]')
+  case "$ext" in
+    m2ts|mts|ts) printf 'mpegts\n' ;;
+    mkv) printf 'matroska\n' ;;
+    mp4|m4v) printf 'mp4\n' ;;
+    mov) printf 'mov\n' ;;
+    *) die "unsupported output extension for .partial extraction: .$ext" ;;
+  esac
+}
+
+plan_tasks() {
+  local selected=$1
+  local tasks=$2
+  local base
+  local duration file
+  local episode
+
+  base=$(output_base_dir)
+  : > "$tasks"
+
+  case "$TYPE" in
+    movie)
+      IFS="$(printf '\t')" read -r duration file < "$selected"
+      printf '%s\t%s\t%s\t%s\n' "$duration" "$file" "$(movie_output_path "$base" "$file")" "movie" > "$tasks"
+      ;;
+    series)
+      episode=$EPISODE_START
+      while IFS="$(printf '\t')" read -r duration file; do
+        printf '%s\t%s\t%s\t%s\n' "$duration" "$file" "$(episode_output_path "$base" "$episode" "$file")" "episode $episode" >> "$tasks"
+        episode=$((episode + 1))
+      done < "$selected"
+      ;;
+  esac
+}
+
+print_tasks() {
+  local tasks=$1
+  local duration source output label
+
+  while IFS="$(printf '\t')" read -r duration source output label; do
+    printf '%s  %s -> %s\n' "$(format_duration "$duration")" "$(basename "$source")" "$(target_display_path "$output")"
+  done < "$tasks"
+}
+
+target_display_path() {
+  local output=$1
+
+  case "$output" in
+    "$OUTPUT"/*) printf '%s\n' "${output#"$OUTPUT"/}" ;;
+    *) printf '%s\n' "$output" ;;
+  esac
+}
+
+tmp_output_for() {
+  local output=$1
+  printf '%s.partial\n' "$output"
+}
+
+extract_one() {
+  local source=$1
+  local output=$2
+  local label=$3
+  local tmp_output
+  local log_file
+  local muxer
+
+  mkdir -p "$(dirname "$output")"
+
+  tmp_output=$(tmp_output_for "$output")
+  muxer=$(muxer_for_output "$output")
+
+  if [ -e "$output" ] && [ "$OVERWRITE" -eq 0 ]; then
+    rm -f "$tmp_output"
+    return 0
+  fi
+
+  log_file=$TMP_DIR/$label.log
+
+  rm -f "$tmp_output"
+
+  if ffmpeg -hide_banner -nostdin -loglevel error -y \
+    -i "$source" \
+    -map 0:v? -map 0:a? -map 0:s? \
+    -c copy \
+    -f "$muxer" \
+    "$tmp_output" >"$log_file" 2>&1; then
+    mv "$tmp_output" "$output"
+    rm -f "$log_file"
+    return 0
+  fi
+
+  rm -f "$tmp_output"
+  cp "$log_file" "$output.log" 2>/dev/null || true
+  return 1
+}
+
+progress_bar() {
+  local done_count=$1
+  local total=$2
+  local width=30
+  local filled empty
+  local bar_done=""
+  local bar_empty=""
+
+  if [ "$total" -le 0 ]; then
+    return
+  fi
+
+  filled=$((done_count * width / total))
+  empty=$((width - filled))
+
+  while [ "$filled" -gt 0 ]; do
+    bar_done="${bar_done}#"
+    filled=$((filled - 1))
+  done
+
+  while [ "$empty" -gt 0 ]; do
+    bar_empty="${bar_empty}-"
+    empty=$((empty - 1))
+  done
+
+  printf '\r[%s%s] %d/%d' "$bar_done" "$bar_empty" "$done_count" "$total" >&2
+}
+
+count_tasks() {
+  local tasks=$1
+  wc -l < "$tasks" | tr -d '[:space:]'
+}
+
+running_count() {
+  local count=0
+  local pid
+
+  for pid in "${PIDS[@]}"; do
+    if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
+      count=$((count + 1))
+    fi
+  done
+
+  printf '%s\n' "$count"
+}
+
+reap_finished() {
+  local total=$1
+  local done_ref=$2
+  local fail_ref=$3
+  local i pid label
+  local current_done current_fail
+
+  current_done=${!done_ref}
+  current_fail=${!fail_ref}
+
+  i=0
+  while [ "$i" -lt "${#PIDS[@]}" ]; do
+    pid=${PIDS[$i]:-}
+    label=${PID_LABELS[$i]:-task}
+
+    if [ -n "$pid" ] && ! kill -0 "$pid" >/dev/null 2>&1; then
+      if wait "$pid"; then
+        :
+      else
+        current_fail=$((current_fail + 1))
+        printf '\nFailed: %s\n' "$label" >&2
+      fi
+      PIDS[i]=""
+      PID_LABELS[i]=""
+      current_done=$((current_done + 1))
+      progress_bar "$current_done" "$total"
+    fi
+
+    i=$((i + 1))
+  done
+
+  printf -v "$done_ref" '%s' "$current_done"
+  printf -v "$fail_ref" '%s' "$current_fail"
+}
+
+run_tasks() {
+  local tasks=$1
+  local total
+  local done_count=0
+  local fail_count=0
+  local duration source output label
+  local launched=0
+
+  total=$(count_tasks "$tasks")
+  [ "$total" -gt 0 ] || die "no tasks to run"
+
+  progress_bar 0 "$total"
+
+  while IFS="$(printf '\t')" read -r duration source output label; do
+    while [ "$(running_count)" -ge "$JOBS" ]; do
+      reap_finished "$total" done_count fail_count
+      sleep 1
+    done
+
+    launched=$((launched + 1))
+    (
+      trap - EXIT INT TERM
+      extract_one "$source" "$output" "task-$launched"
+    ) &
+    PIDS+=("$!")
+    PID_LABELS+=("$label")
+
+    reap_finished "$total" done_count fail_count
+  done < "$tasks"
+
+  while [ "$done_count" -lt "$total" ]; do
+    reap_finished "$total" done_count fail_count
+    sleep 1
+  done
+
+  printf '\n' >&2
+
+  if [ "$fail_count" -gt 0 ]; then
+    die "$fail_count extraction task(s) failed; check .log files next to failed outputs"
+  fi
+}
+
+main() {
+  parse_args "$@"
+  check_dependencies
+  make_tmp_dir
+  trap cleanup EXIT
+  trap interrupt INT TERM
+
+  resolve_source "$INPUT"
+
+  local catalog=$TMP_DIR/candidates.tsv
+  local selected=$TMP_DIR/selected.tsv
+  local tasks=$TMP_DIR/tasks.tsv
+
+  discover_candidates "$catalog"
+  detect_media_type "$catalog"
+  select_candidates "$catalog" "$selected"
+  plan_tasks "$selected" "$tasks"
+
+  info "Input: $INPUT"
+  info "Output: $OUTPUT"
+  info "Detected media type: $TYPE ($TYPE_REASON)"
+  info "Planned extraction:"
+  print_tasks "$tasks" >&2
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    exit 0
+  fi
+
+  run_tasks "$tasks"
+  info "Done."
+}
+
+main "$@"
