@@ -17,6 +17,8 @@ NO_SEASON_DIR=0
 OVERWRITE=0
 DRY_RUN=0
 USE_ORIGINAL_MEDIA_CONTAINER=0
+LIST_ONLY=0
+OPEN_INDEX=""
 
 TMP_DIR=""
 ISO_MOUNT_POINT=""
@@ -55,6 +57,8 @@ Extraction:
                            Keep source container instead of remuxing to mkv
       --overwrite         Overwrite existing outputs
       --dry-run           Print planned outputs without extracting
+      --list              List playable streams with metadata without extracting
+      --open N            Open listed stream N with the system-associated app
 
 Other:
   -h, --help              Show this help
@@ -177,6 +181,15 @@ parse_args() {
         DRY_RUN=1
         shift
         ;;
+      --list)
+        LIST_ONLY=1
+        shift
+        ;;
+      --open)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        OPEN_INDEX=$2
+        shift 2
+        ;;
       -h|--help)
         usage
         exit 0
@@ -197,6 +210,9 @@ parse_args() {
   is_positive_integer "$EPISODE_START" || die "--episode-start must be a positive integer"
   is_positive_integer "$MIN_DURATION" || die "--min-duration must be a positive integer"
   is_positive_integer "$JOBS" || die "--jobs must be a positive integer"
+  if [ -n "$OPEN_INDEX" ]; then
+    is_positive_integer "$OPEN_INDEX" || die "--open must be a positive integer"
+  fi
 
   INPUT=$(abs_path "$INPUT")
   if [ -n "$OUTPUT" ]; then
@@ -218,6 +234,20 @@ check_dependencies() {
   require_cmd ffmpeg
   require_cmd ffprobe
   require_cmd jq
+
+  if [ -n "$OPEN_INDEX" ]; then
+    case "$(uname -s)" in
+      Darwin)
+        require_cmd open
+        ;;
+      Linux)
+        require_cmd xdg-open
+        ;;
+      *)
+        die "--open is supported only on macOS and Linux"
+        ;;
+    esac
+  fi
 }
 
 make_tmp_dir() {
@@ -574,6 +604,166 @@ format_duration() {
   printf '%02d:%02d:%02d\n' "$hours" "$minutes" "$seconds"
 }
 
+file_size_bytes() {
+  local file=$1
+
+  stat -f '%z' "$file" 2>/dev/null || stat -c '%s' "$file" 2>/dev/null || printf '0\n'
+}
+
+format_bytes() {
+  local bytes=$1
+
+  awk -v bytes="$bytes" '
+    BEGIN {
+      split("B KB MB GB TB", units)
+      value = bytes + 0
+      unit = 1
+      while (value >= 1024 && unit < 5) {
+        value = value / 1024
+        unit++
+      }
+      if (unit == 1) {
+        printf "%d %s\n", value, units[unit]
+      } else {
+        printf "%.1f %s\n", value, units[unit]
+      }
+    }
+  '
+}
+
+clipinf_for_stream() {
+  local file=$1
+  local base
+
+  base=$(basename "$file")
+  base=${base%.*}
+  printf '%s/CLIPINF/%s.clpi\n' "$BDMV_DIR" "$base"
+}
+
+clipinf_language_lines() {
+  local file=$1
+  local clipinf
+
+  clipinf=$(clipinf_for_stream "$file")
+  [ -f "$clipinf" ] || return 0
+  command -v perl >/dev/null 2>&1 || return 0
+
+  perl -0777 -ne '
+    my %seen;
+
+    while (/([\x10-\x1f][\x00-\xff])[\x05-\x20][\x80-\x8f\xa1\xa2][\x00-\xff]([A-Za-z]{3})/g) {
+      my $pid = sprintf("0x%02x%02x", ord(substr($1, 0, 1)), ord(substr($1, 1, 1)));
+      my $lang = lc($2);
+      next if $seen{$pid}++;
+      print "$pid\t$lang\n";
+    }
+
+    while (/([\x10-\x1f][\x00-\xff])[\x05-\x20][\x90-\x92]([A-Za-z]{3})/g) {
+      my $pid = sprintf("0x%02x%02x", ord(substr($1, 0, 1)), ord(substr($1, 1, 1)));
+      my $lang = lc($2);
+      next if $seen{$pid}++;
+      print "$pid\t$lang\n";
+    }
+  ' "$clipinf"
+}
+
+probe_detail_lines() {
+  local file=$1
+  local bytes
+  local languages_file
+
+  bytes=$(file_size_bytes "$file")
+  languages_file=$TMP_DIR/$(basename "$file").languages.tsv
+  clipinf_language_lines "$file" > "$languages_file"
+
+  printf '    source: %s\n' "$file"
+  printf '    size: %s (%s bytes)\n' "$(format_bytes "$bytes")" "$bytes"
+
+  if ! ffprobe -v error \
+    -show_entries stream=index,id,codec_type,codec_name,profile,width,height,channels,channel_layout:stream_tags=language,title \
+    -of json "$file" \
+    2>/dev/null \
+    | jq -r --rawfile languages "$languages_file" '
+        def nonempty($items):
+          $items
+          | map(select(. != null and . != ""))
+          | join(" ");
+        def language_map:
+          $languages
+          | split("\n")
+          | map(split("\t"))
+          | map(select(length == 2))
+          | map({ (.[0]): .[1] })
+          | add // {};
+        def language_name($code):
+          {
+            ara: "Arabic",
+            chi: "Chinese",
+            dan: "Danish",
+            deu: "German",
+            dut: "Dutch",
+            eng: "English",
+            fin: "Finnish",
+            fra: "French",
+            fre: "French",
+            ger: "German",
+            ita: "Italian",
+            jpn: "Japanese",
+            kor: "Korean",
+            nor: "Norwegian",
+            por: "Portuguese",
+            rus: "Russian",
+            spa: "Spanish",
+            swe: "Swedish",
+            tha: "Thai",
+            zho: "Chinese"
+          }[$code] // $code;
+        def language_text($code):
+          if ($code == null or $code == "" or $code == "und") then
+            "Unknown"
+          else
+            language_name($code) + " (" + $code + ")"
+          end;
+        def stream_language:
+          (.tags.language // "") as $tag |
+          if ($tag != "" and $tag != "und") then
+            $tag
+          else
+            language_map[.id] // "und"
+          end;
+        def tagged:
+          "#" + (.index | tostring) + " " + nonempty([
+            language_text(stream_language),
+            .codec_name,
+            (if .channels then ((.channels | tostring) + "ch") else null end),
+            (.channel_layout // null),
+            (.tags.title // null)
+          ]);
+        def video:
+          nonempty([
+            .codec_name,
+            (if .width and .height then ((.width | tostring) + "x" + (.height | tostring)) else null end),
+            (.profile // null)
+          ]);
+        def subtitle:
+          "#" + (.index | tostring) + " " + nonempty([
+            language_text(stream_language),
+            .codec_name,
+            (.tags.title // null)
+          ]);
+        [ .streams[]? | select(.codec_type == "video") | video ] as $video |
+        [ .streams[]? | select(.codec_type == "audio") | tagged ] as $audio |
+        [ .streams[]? | select(.codec_type == "subtitle") | subtitle ] as $subtitle |
+        "    video: " + (if ($video | length) > 0 then ($video | join("; ")) else "unknown" end),
+        "    audio: " + (if ($audio | length) > 0 then ($audio | join("; ")) else "none" end),
+        "    subtitles: " + (if ($subtitle | length) > 0 then ($subtitle | join("; ")) else "none" end)
+      '; then
+    printf '    video: unknown\n'
+    printf '    audio: unknown\n'
+    printf '    subtitles: unknown\n'
+  fi
+}
+
 should_create_season_dir() {
   [ "$TYPE" = "series" ] || return 1
   [ "$NO_SEASON_DIR" -eq 0 ] || return 1
@@ -670,11 +860,66 @@ plan_tasks() {
 
 print_tasks() {
   local tasks=$1
+  local include_details=${2:-0}
   local duration source output label
+  local index=1
 
   while IFS="$(printf '\t')" read -r duration source output label; do
     printf '%s  %s -> %s\n' "$(format_duration "$duration")" "$(basename "$source")" "$(target_display_path "$output")"
+    if [ "$include_details" -eq 1 ]; then
+      printf '    index: %s\n' "$index"
+      probe_detail_lines "$source"
+    fi
+    index=$((index + 1))
   done < "$tasks"
+}
+
+open_with_default_app() {
+  local source=$1
+
+  case "$(uname -s)" in
+    Darwin)
+      if [ "$ISO_MOUNTED_BY_US" -eq 1 ]; then
+        open -W "$source"
+      else
+        open "$source"
+      fi
+      ;;
+    Linux)
+      xdg-open "$source"
+      if [ "$ISO_MOUNTED_BY_US" -eq 1 ]; then
+        if [ -r /dev/tty ]; then
+          info "Keeping ISO mounted at $ISO_MOUNT_POINT while the external player reads the file."
+          info "Press Enter here after playback finishes to unmount and exit."
+          IFS= read -r _ </dev/tty || true
+        else
+          info "Warning: no TTY available; ISO will be unmounted when this command exits."
+        fi
+      fi
+      ;;
+    *)
+      die "--open is supported only on macOS and Linux"
+      ;;
+  esac
+}
+
+open_task() {
+  local tasks=$1
+  local requested_index=$2
+  local duration source output label
+  local index=1
+
+  while IFS="$(printf '\t')" read -r duration source output label; do
+    if [ "$index" -eq "$requested_index" ]; then
+      info "Opening: $(basename "$source")"
+      info "Source: $source"
+      open_with_default_app "$source"
+      return
+    fi
+    index=$((index + 1))
+  done < "$tasks"
+
+  die "--open index out of range: $requested_index"
 }
 
 target_display_path() {
@@ -864,17 +1109,35 @@ main() {
   local catalog=$TMP_DIR/candidates.tsv
   local selected=$TMP_DIR/selected.tsv
   local tasks=$TMP_DIR/tasks.tsv
+  local include_details=0
 
   discover_candidates "$catalog"
   detect_media_type "$catalog"
   select_candidates "$catalog" "$selected"
   plan_tasks "$selected" "$tasks"
 
+  if [ "$DRY_RUN" -eq 1 ] || [ "$LIST_ONLY" -eq 1 ] || [ -n "$OPEN_INDEX" ]; then
+    include_details=1
+  fi
+
   info "Input: $INPUT"
   info "Output: $OUTPUT"
   info "Detected media type: $TYPE ($TYPE_REASON)"
-  info "Planned extraction:"
-  print_tasks "$tasks" >&2
+  if [ "$LIST_ONLY" -eq 1 ]; then
+    info "Playable streams:"
+  else
+    info "Planned extraction:"
+  fi
+  print_tasks "$tasks" "$include_details" >&2
+
+  if [ "$LIST_ONLY" -eq 1 ]; then
+    exit 0
+  fi
+
+  if [ -n "$OPEN_INDEX" ]; then
+    open_task "$tasks" "$OPEN_INDEX"
+    exit 0
+  fi
 
   if [ "$DRY_RUN" -eq 1 ]; then
     exit 0

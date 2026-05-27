@@ -21,6 +21,7 @@
 		A0000000000000000000000C /* SplitterOptionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010C /* SplitterOptionsTests.swift */; };
 		A0000000000000000000000D /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010F /* Localization.swift */; };
 		A0000000000000000000000E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000110 /* Localizable.xcstrings */; };
+		A0000000000000000000000F /* WindowContentFitting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000111 /* WindowContentFitting.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +51,7 @@
 		A0000000000000000000010E /* BRDiscSplitterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BRDiscSplitterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0000000000000000000010F /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		A00000000000000000000110 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		A00000000000000000000111 /* WindowContentFitting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowContentFitting.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -140,6 +142,7 @@
 				A00000000000000000000106 /* PathDefaults.swift */,
 				A00000000000000000000107 /* String+Shell.swift */,
 				A0000000000000000000010F /* Localization.swift */,
+				A00000000000000000000111 /* WindowContentFitting.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -300,6 +303,7 @@
 				A00000000000000000000009 /* DropTargetView.swift in Sources */,
 				A0000000000000000000000A /* LogView.swift in Sources */,
 				A0000000000000000000000D /* Localization.swift in Sources */,
+				A0000000000000000000000F /* WindowContentFitting.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

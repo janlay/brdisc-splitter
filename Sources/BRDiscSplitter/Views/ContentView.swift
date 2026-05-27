@@ -5,16 +5,14 @@ struct ContentView: View {
   private enum Layout {
     static let controlsWidth: CGFloat = 680
     static let logWidth: CGFloat = 520
-    static let minimumHeight: CGFloat = 360
-    static let inputBaseHeight: CGFloat = 390
-    static let optionsBaseHeight: CGFloat = 430
-    static let optionsAdvancedHeight: CGFloat = 330
-    static let outputDirectoryShortcutHeight: CGFloat = 28
-    static let optionsStatusHeight: CGFloat = 36
-    static let confirmHeight: CGFloat = 610
-    static let runningHeight: CGFloat = 650
-    static let completeHeight: CGFloat = 430
   }
+
+  private enum SizeID {
+    static let content = "content"
+    static let wizard = "wizard"
+  }
+
+  static let launchFallbackContentSize = CGSize(width: Layout.controlsWidth, height: 360)
 
   private enum WizardStep: Equatable {
     case input
@@ -36,27 +34,23 @@ struct ContentView: View {
     }
   }
 
-  static let initialContentSize = CGSize(
-    width: Layout.controlsWidth,
-    height: Layout.inputBaseHeight
-  )
-
-  static let minimumContentSize = CGSize(
-    width: Layout.controlsWidth,
-    height: Layout.minimumHeight
-  )
-
   @ObservedObject var model: AppModel
   @State private var step: WizardStep = .input
   @State private var isAdvancedExpanded = false
   @State private var isLogVisible = false
   @State private var window: NSWindow?
   @State private var pendingAdvanceAfterScan = false
+  @State private var measuredContentSize: CGSize = .zero
+  @State private var measuredWizardHeight: CGFloat = 0
 
   var body: some View {
     content
       .frame(width: preferredContentWidth)
-      .frame(height: preferredContentHeight)
+      .fixedSize(horizontal: false, vertical: true)
+      .onMeasuredSizeChange(SizeID.content) { size in
+        measuredContentSize = size
+        fitWindow(to: size)
+      }
       .transaction { transaction in
         transaction.animation = nil
         transaction.disablesAnimations = true
@@ -68,7 +62,6 @@ struct ContentView: View {
       )
       .onChange(of: model.options) { _ in
         model.refreshValidationStatus()
-        resizeWindow()
       }
       .onChange(of: model.isScanning) { isScanning in
         handleScanStateChange(isScanning: isScanning)
@@ -76,27 +69,30 @@ struct ContentView: View {
       .onChange(of: model.isRunning) { isRunning in
         handleRunStateChange(isRunning: isRunning)
       }
-      .onChange(of: model.mediaPlan.items.count) { _ in
-        resizeWindow()
-      }
   }
 
   private var content: some View {
     Group {
       if isLogVisible {
-        HSplitView {
-          wizardPane
-            .frame(width: preferredPaneWidth, height: preferredContentHeight)
-            .layoutPriority(1)
+        HStack(spacing: 0) {
+          measuredWizardPane
 
           LogView(model: model)
-            .frame(width: Layout.logWidth, height: preferredContentHeight)
+            .frame(width: Layout.logWidth, height: logPanelHeight)
         }
       } else {
-        wizardPane
-          .frame(width: preferredPaneWidth, height: preferredContentHeight)
+        measuredWizardPane
       }
     }
+  }
+
+  private var measuredWizardPane: some View {
+    wizardPane
+      .frame(width: preferredPaneWidth)
+      .fixedSize(horizontal: false, vertical: true)
+      .onMeasuredSizeChange(SizeID.wizard) { size in
+        measuredWizardHeight = size.height
+      }
   }
 
   private var wizardPane: some View {
@@ -106,7 +102,7 @@ struct ContentView: View {
       Divider()
 
       stepBody
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(20)
 
       Divider()
@@ -244,7 +240,11 @@ struct ContentView: View {
       }
 
       if model.hasMediaPlan {
-        MediaPlanListView(plan: model.mediaPlan)
+        MediaPlanListView(
+          plan: model.mediaPlan,
+          openingItemID: model.openingItemID,
+          onOpen: model.openMediaItem(_:)
+        )
       }
     }
   }
@@ -316,7 +316,11 @@ struct ContentView: View {
     VStack(alignment: .leading, spacing: 16) {
       SummaryRows(model: model)
 
-      MediaPlanListView(plan: model.mediaPlan, maxVisibleRows: 4)
+      MediaPlanListView(
+        plan: model.mediaPlan,
+        openingItemID: model.openingItemID,
+        onOpen: model.openMediaItem(_:)
+      )
 
       if model.isRunning {
         VStack(alignment: .leading, spacing: 8) {
@@ -523,54 +527,10 @@ struct ContentView: View {
     preferredPaneWidth + (isLogVisible ? Layout.logWidth : 0)
   }
 
-  private var preferredContentHeight: CGFloat {
-    switch step {
-    case .input:
-      return inputContentHeight
-    case .options:
-      return optionsContentHeight
-    case .confirm:
-      return model.isRunning ? Layout.runningHeight : Layout.confirmHeight
-    case .complete:
-      return Layout.completeHeight
-    }
+  private var logPanelHeight: CGFloat {
+    max(1, measuredWizardHeight.rounded(.up))
   }
 
-  private var inputContentHeight: CGFloat {
-    var height = Layout.inputBaseHeight
-
-    if model.isScanning {
-      height += 34
-    }
-
-    if model.scanMessage != nil, !model.isScanning {
-      height += 72
-    }
-
-    if model.hasMediaPlan {
-      height += 16 + MediaPlanListView.estimatedHeight(itemCount: model.mediaPlan.items.count)
-    }
-
-    return height
-  }
-
-  private var optionsContentHeight: CGFloat {
-    var height = Layout.optionsBaseHeight
-
-    if model.inputISOParentDirectory != nil {
-      height += Layout.outputDirectoryShortcutHeight
-    }
-
-    if isAdvancedExpanded {
-      height += Layout.optionsAdvancedHeight
-    }
-
-    if model.isScanning || (model.scanMessage != nil && model.needsPlanRefresh) {
-      height += Layout.optionsStatusHeight
-    }
-
-    return height
-  }
 
   private var advancedExpansion: Binding<Bool> {
     Binding(
@@ -580,7 +540,7 @@ struct ContentView: View {
   }
 
   private var statusTone: StatusBadge.Tone {
-    if model.isRunning || model.isScanning {
+    if model.isRunning || model.isScanning || model.isOpening {
       return .active
     }
 
@@ -628,12 +588,10 @@ struct ContentView: View {
 
     pendingAdvanceAfterScan = true
     model.scanInput()
-    resizeWindow()
   }
 
   private func startExtraction() {
     model.start()
-    resizeWindow()
   }
 
   private func handleScanStateChange(isScanning: Bool) {
@@ -644,8 +602,6 @@ struct ContentView: View {
         setStep(.confirm)
       }
     }
-
-    resizeWindow()
   }
 
   private func handleRunStateChange(isRunning: Bool) {
@@ -653,8 +609,6 @@ struct ContentView: View {
       setStep(.complete)
       return
     }
-
-    resizeWindow()
   }
 
   private func setStep(_ newStep: WizardStep) {
@@ -665,7 +619,6 @@ struct ContentView: View {
     withoutAnimation {
       step = newStep
     }
-    resizeWindow()
   }
 
   private func setLogVisibility(_ visible: Bool) {
@@ -676,7 +629,6 @@ struct ContentView: View {
     withoutAnimation {
       isLogVisible = visible
     }
-    resizeWindow()
   }
 
   private func setAdvancedVisibility(_ visible: Bool) {
@@ -687,7 +639,6 @@ struct ContentView: View {
     withoutAnimation {
       isAdvancedExpanded = visible
     }
-    resizeWindow()
   }
 
   private func withoutAnimation(_ update: () -> Void) {
@@ -707,31 +658,21 @@ struct ContentView: View {
 
     self.window = window
     window.isRestorable = false
+    fitWindow()
   }
 
-  private func resizeWindow() {
+  private func fitWindow(to measuredSize: CGSize? = nil) {
     guard let window else {
       return
     }
 
-    let targetContentSize = CGSize(
-      width: preferredContentWidth,
-      height: preferredContentHeight
-    )
-    let targetFrameSize = window.frameRect(
-      forContentRect: CGRect(origin: .zero, size: targetContentSize)
-    ).size
+    let size = measuredSize ?? measuredContentSize
+    guard size.isUsableWindowContentSize else {
+      return
+    }
 
     DispatchQueue.main.async {
-      window.minSize = targetFrameSize
-
-      var frame = window.frame
-      let top = frame.maxY
-      frame.size.width = targetFrameSize.width
-      frame.size.height = targetFrameSize.height
-      frame.origin.y = top - frame.height
-
-      window.setFrame(frame, display: true, animate: false)
+      WindowContentFitter().fit(window: window, to: size)
     }
   }
 }
@@ -930,27 +871,15 @@ private struct WindowAccessor: NSViewRepresentable {
 
 private struct MediaPlanListView: View {
   let plan: MediaPlan
-  var maxVisibleRows = 6
+  var openingItemID: String?
+  var onOpen: ((MediaPlanItem) -> Void)?
 
-  private static let headerHeight: CGFloat = 24
-  private static let headerSpacing: CGFloat = 8
-  private static let rowHeight: CGFloat = 48
+  private static let rowHeight: CGFloat = 128
   private static let rowSpacing: CGFloat = 6
-  private static let remainingHeight: CGFloat = 18
+  private static let maxVisibleRows = 4
 
-  static func estimatedHeight(itemCount: Int, maxVisibleRows: Int = 6) -> CGFloat {
-    let visibleRows = min(itemCount, maxVisibleRows)
-    guard visibleRows > 0 else {
-      return headerHeight
-    }
-
-    var height = headerHeight + headerSpacing + rowsHeight(visibleRows)
-
-    if itemCount > visibleRows {
-      height += rowSpacing + remainingHeight
-    }
-
-    return height
+  private static func visibleRowsHeight(itemCount: Int) -> CGFloat {
+    rowsHeight(min(itemCount, maxVisibleRows))
   }
 
   private static func rowsHeight(_ rowCount: Int) -> CGFloat {
@@ -974,48 +903,116 @@ private struct MediaPlanListView: View {
           .foregroundStyle(.secondary)
       }
 
-      VStack(alignment: .leading, spacing: Self.rowSpacing) {
-        ForEach(Array(plan.items.prefix(maxVisibleRows))) { item in
-          HStack(spacing: 10) {
-            Text(item.durationText)
-              .font(.caption)
-              .monospacedDigit()
-              .foregroundStyle(.secondary)
-              .frame(width: 58, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 2) {
-              Text(item.sourceName)
-                .font(.callout.weight(.medium))
-                .lineLimit(1)
-
-              Text(item.outputDisplayPath)
+      ScrollView(.vertical) {
+        VStack(alignment: .leading, spacing: Self.rowSpacing) {
+          ForEach(plan.items) { item in
+            HStack(spacing: 10) {
+              Text(item.durationText)
                 .font(.caption)
+                .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .frame(width: 58, alignment: .leading)
+
+              VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                  Text(item.sourceName)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+
+                  if let sizeText = item.sizeText {
+                    Text(sizeText)
+                      .font(.caption2)
+                      .foregroundStyle(.secondary)
+                      .lineLimit(1)
+                  }
+                }
+
+                Text(item.outputDisplayPath)
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+                  .lineLimit(1)
+
+                MediaMetadataRows(item: item)
+              }
+
+              Spacer(minLength: 8)
+
+              if let onOpen {
+                Button {
+                  onOpen(item)
+                } label: {
+                  if openingItemID == item.id {
+                    ProgressView()
+                      .controlSize(.small)
+                      .frame(width: 18, height: 18)
+                  } else {
+                    Image(systemName: "play.circle")
+                      .font(.body)
+                  }
+                }
+                .buttonStyle(.borderless)
+                .disabled(openingItemID != nil)
+                .help(L10n.string("button.openMedia.help"))
+              } else {
+                Image(systemName: "arrow.right.circle")
+                  .font(.caption)
+                  .foregroundStyle(.tertiary)
+              }
             }
-
-            Spacer(minLength: 8)
-
-            Image(systemName: "arrow.right.circle")
-              .font(.caption)
-              .foregroundStyle(.tertiary)
+            .padding(.horizontal, 10)
+            .frame(height: Self.rowHeight, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+              RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .controlBackgroundColor))
+            )
           }
-          .padding(.horizontal, 10)
-          .frame(height: Self.rowHeight, alignment: .leading)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .background(
-            RoundedRectangle(cornerRadius: 8)
-              .fill(Color(nsColor: .controlBackgroundColor))
-          )
-        }
-
-        if plan.items.count > maxVisibleRows {
-          Text(L10n.format("mediaPlan.remainingCount", plan.items.count - maxVisibleRows))
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
       }
+      .frame(height: Self.visibleRowsHeight(itemCount: plan.items.count))
     }
+  }
+
+}
+
+private struct MediaMetadataRows: View {
+  let item: MediaPlanItem
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      metadataRow(title: L10n.string("mediaPlan.videoLabel"), values: values(from: item.videoText))
+      metadataRow(title: L10n.string("mediaPlan.audioLabel"), values: values(from: item.audioText))
+      metadataRow(title: L10n.string("mediaPlan.subtitlesLabel"), values: values(from: item.subtitlesText))
+    }
+    .padding(.top, 2)
+  }
+
+  @ViewBuilder
+  private func metadataRow(title: String, values: [String]) -> some View {
+    if !values.isEmpty {
+      HStack(alignment: .firstTextBaseline, spacing: 6) {
+        Text(title)
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(.secondary)
+          .frame(width: 54, alignment: .leading)
+
+        Text(values.joined(separator: "  |  "))
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+    }
+  }
+
+  private func values(from text: String?) -> [String] {
+    guard let text, !text.trimmed.isEmpty else {
+      return []
+    }
+
+    return text
+      .components(separatedBy: ";")
+      .map { $0.trimmed }
+      .filter { !$0.isEmpty }
   }
 }
 

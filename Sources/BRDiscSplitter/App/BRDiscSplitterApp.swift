@@ -83,16 +83,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
   private func showMainWindow() {
     if mainWindow == nil {
       let rootView = ContentView(model: model)
-        .frame(
-          minWidth: ContentView.minimumContentSize.width,
-          minHeight: ContentView.minimumContentSize.height
-        )
         .onAppear { [model] in
           model.bootstrap()
         }
+      let hostingView = NSHostingView(rootView: rootView)
+      let proposedLaunchSize = hostingView.fittingSize
+      let launchMeasuredSize = proposedLaunchSize.isUsableWindowContentSize
+        ? proposedLaunchSize
+        : ContentView.launchFallbackContentSize
+      let initialContentSize = WindowContentFitPolicy().targetContentSize(
+        measuredSize: launchMeasuredSize,
+        visibleFrame: NSScreen.main?.visibleFrame
+      )
 
       let window = NSWindow(
-        contentRect: NSRect(origin: .zero, size: ContentView.initialContentSize),
+        contentRect: NSRect(origin: .zero, size: initialContentSize),
         styleMask: [.titled, .closable, .miniaturizable, .resizable],
         backing: .buffered,
         defer: false
@@ -101,7 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
       window.isRestorable = false
       window.isReleasedWhenClosed = false
       window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
-      window.contentView = NSHostingView(rootView: rootView)
+      window.contentView = hostingView
+      WindowContentFitter().fit(window: window, to: launchMeasuredSize)
       mainWindow = window
     }
 

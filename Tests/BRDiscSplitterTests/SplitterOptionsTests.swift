@@ -76,6 +76,64 @@ final class SplitterOptionsTests: XCTestCase {
     XCTAssertEqual(plan.items[0].outputPath, "/tmp/Output/Show/Show S01E01.mkv")
   }
 
+  func testMediaPlanParserReadsPlayableMetadata() {
+    let output = """
+    Input: /Volumes/Disc
+    Output: /tmp/Output
+    Detected media type: movie (only one candidate stream)
+    Planned extraction:
+    01:42:10  00001.m2ts -> Movie/Movie.mkv
+        index: 1
+        source: /Volumes/Disc/BDMV/STREAM/00001.m2ts
+        size: 24.5 GB (26306674688 bytes)
+        video: h264 1920x1080 High
+        audio: #1 English (eng) dts 6ch 5.1; #2 Japanese (jpn) ac3 2ch stereo
+        subtitles: #3 Chinese (zho) hdmv_pgs_subtitle
+    """
+
+    let plan = MediaPlanParser.parse(output, outputDirectory: "/tmp/Output")
+
+    XCTAssertEqual(plan.items.count, 1)
+    XCTAssertEqual(plan.items[0].index, 1)
+    XCTAssertEqual(plan.items[0].sourcePath, "/Volumes/Disc/BDMV/STREAM/00001.m2ts")
+    XCTAssertEqual(plan.items[0].sizeText, "24.5 GB")
+    XCTAssertEqual(plan.items[0].videoText, "h264 1920x1080 High")
+    XCTAssertEqual(plan.items[0].audioText, "#1 English (eng) dts 6ch 5.1; #2 Japanese (jpn) ac3 2ch stereo")
+    XCTAssertEqual(plan.items[0].subtitlesText, "#3 Chinese (zho) hdmv_pgs_subtitle")
+  }
+
+  func testWindowContentFitUsesMeasuredHeight() {
+    let policy = WindowContentFitPolicy()
+
+    XCTAssertEqual(
+      policy.targetContentSize(
+        measuredSize: CGSize(width: 680.2, height: 241.1),
+        visibleFrame: nil
+      ),
+      CGSize(width: 681, height: 242)
+    )
+
+    XCTAssertEqual(
+      policy.targetContentSize(
+        measuredSize: CGSize(width: 680.2, height: 512.4),
+        visibleFrame: nil
+      ),
+      CGSize(width: 681, height: 513)
+    )
+  }
+
+  func testWindowContentFitClampsToVisibleFrame() {
+    let policy = WindowContentFitPolicy(displayPadding: 10)
+
+    XCTAssertEqual(
+      policy.targetContentSize(
+        measuredSize: CGSize(width: 1_000, height: 900),
+        visibleFrame: CGRect(x: 0, y: 0, width: 700, height: 500)
+      ),
+      CGSize(width: 680, height: 480)
+    )
+  }
+
   @MainActor
   func testUseInputISOParentDirectoryForOutput() throws {
     let fileManager = FileManager.default

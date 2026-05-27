@@ -65,6 +65,18 @@ Preview the extraction plan without writing media files:
 ./brdisc-splitter -i Show.iso --dry-run
 ```
 
+List playable files and key metadata without writing media files:
+
+```bash
+./brdisc-splitter -i Show.iso --list
+```
+
+Open the first listed file with the system-associated app without extracting it:
+
+```bash
+./brdisc-splitter -i Show.iso --open 1
+```
+
 Common CLI options:
 
 - `-o, --output DIR`: Output directory. Defaults to the current directory.
@@ -74,12 +86,16 @@ Common CLI options:
 - `--episode-start N`: Set the first episode number.
 - `--use-original-media-container`: Preserve the source media container, for example output `.m2ts`.
 - `--overwrite`: Overwrite existing output files.
+- `--list`: Print index, duration, file size, video, audio tracks, subtitles, and source path.
+- `--open N`: Open the source `.m2ts` file at list index `N` with the system-associated app.
 
 On Linux, CLI ISO auto-mounting prefers `udisksctl`; otherwise it requires a root-capable read-only loop mount.
 
 ## Extraction Behavior
 
 BRDisc Splitter automatically detects whether the source is a movie or a TV series. Movies use the longest candidate stream. TV episodes are generated from `.m2ts` streams in filename order. Output defaults to the mkv container without transcoding.
+
+Listing and direct playback reference the `.m2ts` files inside the Blu-ray source. For ISO input, the tool mounts the ISO read-only first; if the tool mounted the ISO itself, `--open` keeps that mount alive until the external open command returns so the player does not lose the source file mid-playback.
 
 TV output creates a `Season NN` directory only when multiple seasons are detected. Single-season output is written directly under the media directory, while filenames still include `SxxEyy`.
 

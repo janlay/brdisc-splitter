@@ -65,6 +65,18 @@ macOS 下处理 ISO 还会使用系统工具 `hdiutil` 和 `plutil`。
 ./brdisc-splitter -i Show.iso --dry-run
 ```
 
+列出可播放文件和关键元数据，不写入媒体文件：
+
+```bash
+./brdisc-splitter -i Show.iso --list
+```
+
+用系统关联的软件直接打开列表中的第 1 个文件播放，不完整提取：
+
+```bash
+./brdisc-splitter -i Show.iso --open 1
+```
+
 常用 CLI 选项：
 
 - `-o, --output DIR`：输出目录，默认当前目录。
@@ -74,12 +86,16 @@ macOS 下处理 ISO 还会使用系统工具 `hdiutil` 和 `plutil`。
 - `--episode-start N`：设置起始集号。
 - `--use-original-media-container`：保留源媒体容器，例如输出 `.m2ts`。
 - `--overwrite`：覆盖已有输出文件。
+- `--list`：列出序号、时长、文件大小、视频、音轨、字幕和源文件路径。
+- `--open N`：按列表序号用系统关联的软件打开源 `.m2ts` 文件。
 
 Linux 下 CLI 自动挂载 ISO 优先使用 `udisksctl`；否则需要 root 环境支持只读 loop mount。
 
 ## 提取行为
 
 BRDisc Splitter 会自动检测来源是电影还是剧集。电影使用最长的候选流；剧集按 `.m2ts` 文件名顺序生成剧集文件。默认输出 mkv 容器，不转码。
+
+列表和打开播放都直接引用蓝光源内的 `.m2ts` 文件。对 ISO 输入，工具会先只读挂载 ISO；如果 ISO 是由工具挂载的，`--open` 会在外部打开命令返回前保持挂载，避免播放器读取期间源文件消失。
 
 剧集输出只有在检测到多季时才创建 `Season NN` 目录。单季输出会直接写入媒体目录，文件名仍包含 `SxxEyy`。
 

@@ -18,13 +18,19 @@ struct MediaPlan: Equatable {
 }
 
 struct MediaPlanItem: Identifiable, Equatable {
+  var index: Int
   let durationText: String
   let sourceName: String
   let outputDisplayPath: String
   let outputPath: String
+  var sourcePath: String?
+  var sizeText: String?
+  var videoText: String?
+  var audioText: String?
+  var subtitlesText: String?
 
   var id: String {
-    "\(sourceName)|\(outputPath)"
+    "\(index)|\(sourceName)|\(outputPath)"
   }
 }
 
@@ -81,8 +87,17 @@ enum MediaPlanParser {
         continue
       }
 
-      if isReadingTasks, let item = parseItem(line, outputDirectory: outputDirectory) {
+      if isReadingTasks, let item = parseItem(
+        line,
+        outputDirectory: outputDirectory,
+        fallbackIndex: plan.items.count + 1
+      ) {
         plan.items.append(item)
+        continue
+      }
+
+      if isReadingTasks, !plan.items.isEmpty {
+        applyDetail(line, to: &plan.items[plan.items.count - 1])
       }
     }
 
@@ -107,7 +122,11 @@ enum MediaPlanParser {
     }
   }
 
-  private static func parseItem(_ line: String, outputDirectory: String) -> MediaPlanItem? {
+  private static func parseItem(
+    _ line: String,
+    outputDirectory: String,
+    fallbackIndex: Int
+  ) -> MediaPlanItem? {
     guard line.count > 10 else {
       return nil
     }
@@ -137,11 +156,52 @@ enum MediaPlanParser {
     }
 
     return MediaPlanItem(
+      index: fallbackIndex,
       durationText: duration,
       sourceName: sourceName,
       outputDisplayPath: outputDisplayPath,
-      outputPath: outputPath
+      outputPath: outputPath,
+      sourcePath: nil,
+      sizeText: nil,
+      videoText: nil,
+      audioText: nil,
+      subtitlesText: nil
     )
+  }
+
+  private static func applyDetail(_ line: String, to item: inout MediaPlanItem) {
+    let detail = line.trimmed
+
+    if let value = value(in: detail, for: "index"), let index = Int(value) {
+      item.index = index
+    } else if let value = value(in: detail, for: "source") {
+      item.sourcePath = value
+    } else if let value = value(in: detail, for: "size") {
+      item.sizeText = stripByteSuffix(from: value)
+    } else if let value = value(in: detail, for: "video") {
+      item.videoText = value
+    } else if let value = value(in: detail, for: "audio") {
+      item.audioText = value
+    } else if let value = value(in: detail, for: "subtitles") {
+      item.subtitlesText = value
+    }
+  }
+
+  private static func value(in line: String, for key: String) -> String? {
+    let prefix = "\(key):"
+    guard line.hasPrefix(prefix) else {
+      return nil
+    }
+
+    return String(line.dropFirst(prefix.count)).trimmed
+  }
+
+  private static func stripByteSuffix(from sizeText: String) -> String {
+    guard let range = sizeText.range(of: " (", options: .backwards) else {
+      return sizeText
+    }
+
+    return String(sizeText[..<range.lowerBound])
   }
 
   private static func isDuration(_ value: String) -> Bool {
@@ -177,9 +237,11 @@ final class AppModel: ObservableObject {
   @Published var mediaPlan = MediaPlan()
   @Published var progress = ExtractionProgress()
   @Published var completionSummary: ExtractionSummary?
+  @Published var openingItemID: String?
 
   private let runner = SplitterRunner()
   private let scanner = SplitterRunner()
+  private let opener = SplitterRunner()
   private var didBootstrap = false
   private var scanBuffer = ""
   private var lastScanOptions: SplitterOptions?
@@ -199,6 +261,10 @@ final class AppModel: ObservableObject {
 
   var isBusy: Bool {
     isRunning || isScanning
+  }
+
+  var isOpening: Bool {
+    openingItemID != nil
   }
 
   var hasMediaPlan: Bool {
@@ -421,7 +487,7 @@ final class AppModel: ObservableObject {
   }
 
   func clearLog() {
-    guard !isBusy else {
+    guard !isBusy, !isOpening else {
       return
     }
 
@@ -459,12 +525,58 @@ final class AppModel: ObservableObject {
     NSWorkspace.shared.open(URL(fileURLWithPath: outputDirectory))
   }
 
+  func openMediaItem(_ item: MediaPlanItem) {
+    guard !isRunning, !isScanning, openingItemID == nil else {
+      return
+    }
+
+    guard let openOptions = lastScanOptions, !needsPlanRefresh else {
+      scanMessage = L10n.string("status.planChangedRescanShort")
+      statusText = scanMessage ?? L10n.string("status.needRescan")
+      return
+    }
+
+    let arguments = openOptions.commandArguments(forceDryRun: false) + ["--open", String(item.index)]
+    let scriptPath = openOptions.cliPath
+    let workingDirectory = URL(fileURLWithPath: scriptPath).deletingLastPathComponent()
+    let preview = (["/bin/bash", scriptPath] + arguments)
+      .map { $0.shellQuoted }
+      .joined(separator: " ")
+    let itemID = item.id
+
+    openingItemID = itemID
+    statusText = L10n.format("status.openingMedia", item.sourceName)
+    appendLog("> \(preview)\n\n")
+
+    do {
+      try opener.run(
+        scriptPath: scriptPath,
+        arguments: arguments,
+        workingDirectory: workingDirectory,
+        onOutput: { [weak self] text in
+          Task { @MainActor in
+            self?.appendLog(text)
+          }
+        },
+        onCompletion: { [weak self] exitCode in
+          Task { @MainActor in
+            self?.finishOpen(exitCode: exitCode, itemID: itemID)
+          }
+        }
+      )
+    } catch {
+      openingItemID = nil
+      statusText = error.localizedDescription
+      appendLog("\n\(error.localizedDescription)\n")
+    }
+  }
+
   func quit() {
     NSApp.terminate(nil)
   }
 
   func resetForNewTask() {
-    guard !isBusy else {
+    guard !isBusy, !isOpening else {
       return
     }
 
@@ -479,6 +591,7 @@ final class AppModel: ObservableObject {
     mediaPlan = MediaPlan()
     progress = ExtractionProgress()
     completionSummary = nil
+    openingItemID = nil
     lastScanOptions = nil
     runningOptions = nil
     refreshStatus()
@@ -530,6 +643,20 @@ final class AppModel: ObservableObject {
 
     runningOptions = nil
     isRunning = false
+  }
+
+  private func finishOpen(exitCode: Int32, itemID: String) {
+    if openingItemID == itemID {
+      openingItemID = nil
+    }
+
+    if exitCode == 0 {
+      appendLog("\n> open finished: 0\n")
+      refreshStatus()
+    } else {
+      statusText = L10n.format("status.openFailedWithCode", exitCode)
+      appendLog("\n> open failed: \(exitCode)\n")
+    }
   }
 
   private func makeSummary(options: SplitterOptions) -> ExtractionSummary {
