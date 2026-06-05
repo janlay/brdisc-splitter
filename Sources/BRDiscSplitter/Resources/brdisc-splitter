@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="1.1"
+VERSION="1.2"
 
 INPUT=""
 OUTPUT=""
@@ -282,10 +282,16 @@ cleanup() {
 }
 
 interrupt() {
+  local i
+  local pid
+
   trap - INT TERM
-  if [ "${#PIDS[@]}" -gt 0 ]; then
-    kill "${PIDS[@]}" >/dev/null 2>&1 || true
-  fi
+  i=0
+  while [ "$i" -lt "$(pids_length)" ]; do
+    pid=${PIDS[$i]:-}
+    [ -z "$pid" ] || kill "$pid" >/dev/null 2>&1 || true
+    i=$((i + 1))
+  done
   exit 130
 }
 
@@ -724,6 +730,16 @@ probe_detail_lines() {
           else
             language_name($code) + " (" + $code + ")"
           end;
+        def is_chinese($code):
+          $code == "chi" or $code == "zho";
+        def chinese_script_title($index):
+          if $index == 0 then
+            "Chinese Simplified?"
+          elif $index == 1 then
+            "Chinese Traditional?"
+          else
+            "Chinese?"
+          end;
         def stream_language:
           (.tags.language // "") as $tag |
           if ($tag != "" and $tag != "und") then
@@ -745,23 +761,115 @@ probe_detail_lines() {
             (if .width and .height then ((.width | tostring) + "x" + (.height | tostring)) else null end),
             (.profile // null)
           ]);
-        def subtitle:
+        def subtitle($chinese_index; $chinese_total):
+          stream_language as $language |
+          (.tags.title // null) as $title |
           "#" + (.index | tostring) + " " + nonempty([
-            language_text(stream_language),
+            (if is_chinese($language) and $chinese_total > 1 and ($title == null or $title == "") then
+              chinese_script_title($chinese_index) + " (" + $language + ")"
+            else
+              language_text($language)
+            end),
             .codec_name,
-            (.tags.title // null)
+            $title
           ]);
         [ .streams[]? | select(.codec_type == "video") | video ] as $video |
         [ .streams[]? | select(.codec_type == "audio") | tagged ] as $audio |
-        [ .streams[]? | select(.codec_type == "subtitle") | subtitle ] as $subtitle |
+        [ .streams[]? | select(.codec_type == "subtitle") ] as $subtitle_streams |
+        [ $subtitle_streams[] | select(is_chinese(stream_language)) ] as $chinese_subtitles |
+        reduce $subtitle_streams[] as $subtitle
+          ({ chinese: 0, out: [] };
+            ($subtitle | stream_language) as $language |
+            if is_chinese($language) then
+              .chinese as $chinese_index |
+              .out += [($subtitle | subtitle($chinese_index; ($chinese_subtitles | length)))] |
+              .chinese += 1
+            else
+              .out += [($subtitle | subtitle(0; 0))]
+            end
+          ) as $subtitle |
         "    video: " + (if ($video | length) > 0 then ($video | join("; ")) else "unknown" end),
         "    audio: " + (if ($audio | length) > 0 then ($audio | join("; ")) else "none" end),
-        "    subtitles: " + (if ($subtitle | length) > 0 then ($subtitle | join("; ")) else "none" end)
+        "    subtitles: " + (if ($subtitle.out | length) > 0 then ($subtitle.out | join("; ")) else "none" end)
       '; then
     printf '    video: unknown\n'
     printf '    audio: unknown\n'
     printf '    subtitles: unknown\n'
   fi
+}
+
+language_metadata_args() {
+  local file=$1
+  local languages_file
+
+  languages_file=$TMP_DIR/$(basename "$file").metadata-languages.tsv
+  clipinf_language_lines "$file" > "$languages_file"
+
+  ffprobe -v error \
+    -show_entries stream=id,codec_type:stream_tags=language,title \
+    -of json "$file" \
+    2>/dev/null \
+    | jq -r --rawfile languages "$languages_file" '
+        def language_map:
+          $languages
+          | split("\n")
+          | map(split("\t"))
+          | map(select(length == 2))
+          | map({ (.[0]): .[1] })
+          | add // {};
+        def clean_language($code):
+          ($code // "" | ascii_downcase) as $code |
+          if ($code | test("^[a-z]{3}$")) then $code else "und" end;
+        def is_chinese($code):
+          $code == "chi" or $code == "zho";
+        def chinese_script_title($index):
+          if $index == 0 then
+            "Chinese Simplified?"
+          elif $index == 1 then
+            "Chinese Traditional?"
+          else
+            "Chinese?"
+          end;
+        def stream_language($stream):
+          clean_language($stream.tags.language) as $tag |
+          if ($tag != "und") then
+            $tag
+          else
+            clean_language(language_map[($stream.id // "" | tostring)])
+          end;
+        [ .streams[]? | select(.codec_type == "subtitle") ] as $subtitle_streams |
+        [ $subtitle_streams[] | select(is_chinese(stream_language(.))) ] as $chinese_subtitles |
+        reduce (.streams[]? | select(.codec_type == "audio" or .codec_type == "subtitle")) as $stream
+          ({ audio: 0, subtitle: 0, chinese: 0, out: [] };
+            stream_language($stream) as $language |
+            if $stream.codec_type == "audio" then
+              .audio as $index |
+              .audio += 1 |
+              if $language != "und" then
+                .out += ["-metadata:s:a:\($index)", "language=\($language)"]
+              else
+                .
+              end
+            else
+              .subtitle as $index |
+              .subtitle += 1 |
+              (if is_chinese($language) then .chinese else 0 end) as $chinese_index |
+              if is_chinese($language) then .chinese += 1 else . end |
+              ($stream.tags.title // "") as $title |
+              if $language != "und" then
+                .out += ["-metadata:s:s:\($index)", "language=\($language)"]
+              else
+                .
+              end |
+              if is_chinese($language) and ($chinese_subtitles | length) > 1 and $title == "" then
+                .out += ["-metadata:s:s:\($index)", "title=\(chinese_script_title($chinese_index))"]
+              else
+                .
+              end
+            end
+          )
+        | .out[]
+      ' 2>/dev/null || true
 }
 
 should_create_season_dir() {
@@ -943,6 +1051,8 @@ extract_one() {
   local tmp_output
   local log_file
   local muxer
+  local metadata_args=()
+  local arg
 
   mkdir -p "$(dirname "$output")"
 
@@ -958,10 +1068,16 @@ extract_one() {
 
   rm -f "$tmp_output"
 
+  while IFS= read -r arg; do
+    [ -n "$arg" ] || continue
+    metadata_args+=("$arg")
+  done < <(language_metadata_args "$source")
+
   if ffmpeg -hide_banner -nostdin -loglevel error -y \
     -i "$source" \
     -map 0:v? -map 0:a? -map 0:s? \
     -c copy \
+    "${metadata_args[@]}" \
     -f "$muxer" \
     "$tmp_output" >"$log_file" 2>&1; then
     mv "$tmp_output" "$output"
@@ -1007,14 +1123,25 @@ count_tasks() {
   wc -l < "$tasks" | tr -d '[:space:]'
 }
 
+pids_length() {
+  if [ -z "${PIDS+x}" ]; then
+    printf '0\n'
+  else
+    printf '%s\n' "${#PIDS[@]}"
+  fi
+}
+
 running_count() {
   local count=0
+  local i=0
   local pid
 
-  for pid in "${PIDS[@]}"; do
+  while [ "$i" -lt "$(pids_length)" ]; do
+    pid=${PIDS[$i]:-}
     if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
       count=$((count + 1))
     fi
+    i=$((i + 1))
   done
 
   printf '%s\n' "$count"
@@ -1031,7 +1158,7 @@ reap_finished() {
   current_fail=${!fail_ref}
 
   i=0
-  while [ "$i" -lt "${#PIDS[@]}" ]; do
+  while [ "$i" -lt "$(pids_length)" ]; do
     pid=${PIDS[$i]:-}
     label=${PID_LABELS[$i]:-task}
 

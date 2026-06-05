@@ -833,9 +833,9 @@ private enum AppVersion {
     let info = Bundle.main.infoDictionary ?? [:]
     let version = value(for: "CFBundleShortVersionString", in: info)
     let buildNumber = value(for: "CFBundleVersion", in: info)
-    let gitShort = value(for: "BRDiscGitShortHash", in: info)
+    let gitShort = value(for: "GitShortHash", in: info)
 
-    return "v\(version) (\(buildNumber)) | \(gitShort)"
+    return "v\(version) (\(buildNumber)) \(gitShort)"
   }()
 
   private static func value(for key: String, in info: [String: Any]) -> String {
@@ -874,20 +874,27 @@ private struct MediaPlanListView: View {
   var openingItemID: String?
   var onOpen: ((MediaPlanItem) -> Void)?
 
-  private static let rowHeight: CGFloat = 128
+  private static let rowBaseHeight: CGFloat = 74
+  private static let metadataLineHeight: CGFloat = 18
   private static let rowSpacing: CGFloat = 6
   private static let maxVisibleRows = 4
 
-  private static func visibleRowsHeight(itemCount: Int) -> CGFloat {
-    rowsHeight(min(itemCount, maxVisibleRows))
+  private static func visibleRowsHeight(items: [MediaPlanItem]) -> CGFloat {
+    rowsHeight(Array(items.prefix(maxVisibleRows)))
   }
 
-  private static func rowsHeight(_ rowCount: Int) -> CGFloat {
-    guard rowCount > 0 else {
+  private static func rowsHeight(_ items: [MediaPlanItem]) -> CGFloat {
+    guard !items.isEmpty else {
       return 0
     }
 
-    return CGFloat(rowCount) * rowHeight + CGFloat(rowCount - 1) * rowSpacing
+    return items.reduce(CGFloat(0)) { total, item in
+      total + rowHeight(for: item)
+    } + CGFloat(items.count - 1) * rowSpacing
+  }
+
+  private static func rowHeight(for item: MediaPlanItem) -> CGFloat {
+    rowBaseHeight + CGFloat(MediaMetadataRows.lineCount(for: item)) * metadataLineHeight
   }
 
   var body: some View {
@@ -960,7 +967,7 @@ private struct MediaPlanListView: View {
               }
             }
             .padding(.horizontal, 10)
-            .frame(height: Self.rowHeight, alignment: .leading)
+            .frame(height: Self.rowHeight(for: item), alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
               RoundedRectangle(cornerRadius: 8)
@@ -969,7 +976,7 @@ private struct MediaPlanListView: View {
           }
         }
       }
-      .frame(height: Self.visibleRowsHeight(itemCount: plan.items.count))
+      .frame(height: Self.visibleRowsHeight(items: plan.items))
     }
   }
 
@@ -977,34 +984,43 @@ private struct MediaPlanListView: View {
 
 private struct MediaMetadataRows: View {
   let item: MediaPlanItem
+  private static let labelWidth: CGFloat = 54
+
+  static func lineCount(for item: MediaPlanItem) -> Int {
+    values(from: item.videoText).count
+      + values(from: item.audioText).count
+      + values(from: item.subtitlesText).count
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
-      metadataRow(title: L10n.string("mediaPlan.videoLabel"), values: values(from: item.videoText))
-      metadataRow(title: L10n.string("mediaPlan.audioLabel"), values: values(from: item.audioText))
-      metadataRow(title: L10n.string("mediaPlan.subtitlesLabel"), values: values(from: item.subtitlesText))
+      metadataRows(title: L10n.string("mediaPlan.videoLabel"), values: Self.values(from: item.videoText))
+      metadataRows(title: L10n.string("mediaPlan.audioLabel"), values: Self.values(from: item.audioText))
+      metadataRows(title: L10n.string("mediaPlan.subtitlesLabel"), values: Self.values(from: item.subtitlesText))
     }
     .padding(.top, 2)
   }
 
   @ViewBuilder
-  private func metadataRow(title: String, values: [String]) -> some View {
+  private func metadataRows(title: String, values: [String]) -> some View {
     if !values.isEmpty {
-      HStack(alignment: .firstTextBaseline, spacing: 6) {
-        Text(title)
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(.secondary)
-          .frame(width: 54, alignment: .leading)
+      ForEach(Array(values.enumerated()), id: \.offset) { index, value in
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+          Text(index == 0 ? title : "")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: Self.labelWidth, alignment: .leading)
 
-        Text(values.joined(separator: "  |  "))
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
+          Text(value)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
       }
     }
   }
 
-  private func values(from text: String?) -> [String] {
+  private static func values(from text: String?) -> [String] {
     guard let text, !text.trimmed.isEmpty else {
       return []
     }

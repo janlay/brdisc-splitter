@@ -14,10 +14,10 @@ BRDisc Splitter 是一个 macOS 图形界面应用，用于从蓝光 ISO 文件�
 从源码构建并启动 App：
 
 ```bash
-./script/build_and_run.sh
+make
 ```
 
-脚本会通过 `BRDiscSplitter.xcodeproj` 构建 `dist/BRDisc Splitter.app` 并启动它，内部可执行文件名为 `BRDiscSplitter`。GUI 默认调用 app 内置资源 `Contents/Resources/brdisc-splitter`；如果需要指定其他脚本位置，可以在高级区域选择。仓库根目录的 `./brdisc-splitter` 会转发到同一份 CLI 脚本，仍可单独调用。
+Makefile 会通过 `BRDiscSplitter.xcodeproj` 构建 `dist/BRDisc Splitter.app` 并启动它，内部可执行文件名为 `BRDiscSplitter`。GUI 默认调用 app 内置资源 `Contents/Resources/brdisc-splitter`；如果需要指定其他脚本位置，可以在高级区域选择。仓库根目录的 `./brdisc-splitter` 会转发到同一份 CLI 脚本，仍可单独调用。
 
 也可以直接用 Xcode 打开 `BRDiscSplitter.xcodeproj`，选择 `BRDiscSplitter` scheme 运行或测试。
 

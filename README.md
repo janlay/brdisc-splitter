@@ -14,10 +14,10 @@ BRDisc Splitter is a macOS app for extracting movie or TV episode streams from B
 Build and launch the app from source:
 
 ```bash
-./script/build_and_run.sh
+make
 ```
 
-The script builds `dist/BRDisc Splitter.app` through `BRDiscSplitter.xcodeproj` and launches it. Its internal executable is named `BRDiscSplitter`. The GUI uses the bundled `Contents/Resources/brdisc-splitter` script by default; you can pick a different script in the advanced section. The repository-root `./brdisc-splitter` wrapper forwards to the same CLI script and remains callable on its own.
+The Makefile builds `dist/BRDisc Splitter.app` through `BRDiscSplitter.xcodeproj` and launches it. Its internal executable is named `BRDiscSplitter`. The GUI uses the bundled `Contents/Resources/brdisc-splitter` script by default; you can pick a different script in the advanced section. The repository-root `./brdisc-splitter` wrapper forwards to the same CLI script and remains callable on its own.
 
 You can also open `BRDiscSplitter.xcodeproj` in Xcode and use the `BRDiscSplitter` scheme to run or test the app.
 
